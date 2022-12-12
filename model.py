@@ -59,6 +59,7 @@ class CaptionGenerator(BaseModel):
         self.dim_ctx = 512
         self.images = images
 
+
     def build_resnet50(self):
         """ Build the ResNet50. """
         config = self.config
@@ -334,6 +335,7 @@ class CaptionGenerator(BaseModel):
                        / tf.reduce_sum(masks)
 
         self.contexts = contexts
+
         if self.is_train:
             self.sentences = sentences
             self.masks = masks
@@ -359,6 +361,8 @@ class CaptionGenerator(BaseModel):
         """ Initialize the LSTM using the mean context. """
         config = self.config
         context_mean = self.nn.dropout(context_mean)
+
+
         if config.num_initalize_layers == 1:
             # use 1 fc layer to initialize
             memory = self.nn.dense(context_mean,
@@ -392,12 +396,14 @@ class CaptionGenerator(BaseModel):
                                    name = 'fc_b2')
         return memory, output
 
+
     def attend(self, contexts, output):
         """ Attention Mechanism. """
         config = self.config
         reshaped_contexts = tf.reshape(contexts, [-1, self.dim_ctx])
         reshaped_contexts = self.nn.dropout(reshaped_contexts)
         output = self.nn.dropout(output)
+
         if config.num_attend_layers == 1:
             # use 1 fc layer to attend
             logits1 = self.nn.dense(reshaped_contexts,
@@ -439,6 +445,8 @@ class CaptionGenerator(BaseModel):
         """ Decode the expanded output of the LSTM into a word. """
         config = self.config
         expanded_output = self.nn.dropout(expanded_output)
+
+        
         if config.num_decode_layers == 1:
             # use 1 fc layer to decode
             logits = self.nn.dense(expanded_output,
@@ -512,6 +520,8 @@ class CaptionGenerator(BaseModel):
 
         self.opt_op = opt_op
 
+
+
     def build_summary(self):
         """ Build the summary (for TensorBoard visualization). """
         with tf.name_scope("variables"):
@@ -530,6 +540,8 @@ class CaptionGenerator(BaseModel):
             self.variable_summary(self.attentions)
 
         self.summary = tf.summary.merge_all()
+
+
 
     def variable_summary(self, var):
         """ Build the summary for a variable. """

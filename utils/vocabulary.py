@@ -41,12 +41,16 @@ class Vocabulary(object):
         self.word_frequencies = np.log(self.word_frequencies)
         self.word_frequencies -= np.max(self.word_frequencies)
 
+
+
     def process_sentence(self, sentence):
         """ Tokenize a sentence, and translate each token into its index
             in the vocabulary. """
         words = word_tokenize(sentence.lower())
         word_idxs = [self.word2idx[w] for w in words]
         return word_idxs
+
+
 
     def get_sentence(self, idxs):
         """ Translate a vector of indicies into a sentence. """

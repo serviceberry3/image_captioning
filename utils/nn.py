@@ -1,5 +1,9 @@
 import tensorflow as tf
-import tensorflow.contrib.layers as layers
+
+#import tensorflow.contrib.layers as layers
+
+#Keras is a high-level, deep learning API developed by Google for implementing neural networks
+import tensorflow.keras as keras
 
 class NN(object):
     def __init__(self, config):
@@ -12,17 +16,21 @@ class NN(object):
         """ Setup the weight initalizers and regularizers. """
         config = self.config
 
-        self.conv_kernel_initializer = layers.xavier_initializer()
+        #CHANGE: TF1 to TF2
+        #self.conv_kernel_initializer = layers.xavier_initializer()
+        self.conv_kernel_initializer = keras.initalizers.glorot_normal
 
         if self.train_cnn and config.conv_kernel_regularizer_scale > 0:
-            self.conv_kernel_regularizer = layers.l2_regularizer(
-                scale = config.conv_kernel_regularizer_scale)
+            #CHANGE: TF1 to TF2
+            #self.conv_kernel_regularizer = layers.l2_regularizer(scale = config.conv_kernel_regularizer_scale)
+            self.conv_kernel_regularizer = keras.regularizers.l2(scale = config.conv_kernel_regularizer_scale)
         else:
             self.conv_kernel_regularizer = None
 
         if self.train_cnn and config.conv_activity_regularizer_scale > 0:
-            self.conv_activity_regularizer = layers.l1_regularizer(
-                scale = config.conv_activity_regularizer_scale)
+            #CHANGE: TF1 to TF2
+            #self.conv_activity_regularizer = layers.l1_regularizer(scale = config.conv_activity_regularizer_scale)
+            self.conv_activity_regularizer = keras.regularizers.l1(scale = config.conv_kernel_regularizer_scale)
         else:
             self.conv_activity_regularizer = None
 

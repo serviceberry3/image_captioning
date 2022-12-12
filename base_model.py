@@ -3,9 +3,11 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
-import cPickle as pickle
+import pickle
 import copy
 import json
+
+#tqdm is a library in Python which is used for creating Progress Meters or Progress Bars
 from tqdm import tqdm
 
 from utils.nn import NN
@@ -75,8 +77,10 @@ class BaseModel(object):
             batch = eval_data.next_batch()
             caption_data = self.beam_search(sess, batch, vocabulary)
 
-            fake_cnt = 0 if k<eval_data.num_batches-1 \
-                         else eval_data.fake_count
+            fake_cnt = 0 if k<eval_data.num_batches-1 else eval_data.fake_count
+
+
+
             for l in range(eval_data.batch_size-fake_cnt):
                 word_idxs = caption_data[l][0].sentence
                 score = caption_data[l][0].score
