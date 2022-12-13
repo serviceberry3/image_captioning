@@ -1,23 +1,31 @@
 #!/usr/bin/python
-import tensorflow as tf
+import tensorflow.compat.v1 as tf #this will be Tf 2
 
 from config import Config
 from model import CaptionGenerator
 from dataset import prepare_train_data, prepare_eval_data, prepare_test_data
 
 #flags passed to the application
-FLAGS = tf.app.flags.FLAGS
+
+#CHANGED by nweiner
+#FLAGS = tf.app.flags.FLAGS
+FLAGS = tf.flags.FLAGS
 
 
 #define all of the flag options
-tf.flags.DEFINE_string('phase', 'train',
-                       'The phase can be train, eval or test')
+
+#CHANGED by nweiner from tf.flags to tf.compat.v1.flags
+
+#this cmd registers a flag whose value can be any string.
+tf.flags.DEFINE_string('phase', 
+'train', #the second entry here gives the default value for the flag
+                       'The phase can be #train, #eval or #test, where #train is the default') #the third entry gives the help description for the flag
 
 tf.flags.DEFINE_boolean('load', False,
                         'Turn on to load a pretrained model from either the latest checkpoint or a specified file')
 
 tf.flags.DEFINE_string('model_file', None,
-                       'If sepcified, load a pretrained model from this file')
+                       'If specified, load a pretrained model from this file')
 
 tf.flags.DEFINE_boolean('load_cnn', False,
                         'Turn on to load a pretrained CNN model')
@@ -33,44 +41,81 @@ tf.flags.DEFINE_integer('beam_size', 3,
 
 
 
+
 #main program entrypoint
 def main(argv):
+    print("Calling main() in main.py...")
 
+    #instantiate a Config object, and set some of its parameters based on user-passed args
     config = Config()
     config.phase = FLAGS.phase
     config.train_cnn = FLAGS.train_cnn
     config.beam_size = FLAGS.beam_size
 
+    tf.disable_eager_execution()
 
-    
+    #create a TensorFlow session
     with tf.Session() as sess:
         if FLAGS.phase == 'train':
-            # training phase
+            #if user specified training, then train the network
+            print("\nUser specified train, so training network...\n")
+
+            #prepare the training data
             data = prepare_train_data(config)
+
+            #build the model
             model = CaptionGenerator(config)
+
+            #run the TensorFlow training session
             sess.run(tf.global_variables_initializer())
+
+            #if user specified checkpoint to load model weights from, load it
             if FLAGS.load:
                 model.load(sess, FLAGS.model_file)
+
+            #if user specified that CNN portion of model should be loaded from pretrained CNN file, load it
             if FLAGS.load_cnn:
                 model.load_cnn(sess, FLAGS.cnn_model_file)
+
+            
+            #get_default_graph() returns the default graph for the current thread
             tf.get_default_graph().finalize()
             model.train(sess, data)
 
+
+        
         elif FLAGS.phase == 'eval':
-            # evaluation phase
+            #if user specified eval, then do evaluation phase
+            print("User specified eval, so doing evaluation...")
+
             coco, data, vocabulary = prepare_eval_data(config)
             model = CaptionGenerator(config)
             model.load(sess, FLAGS.model_file)
             tf.get_default_graph().finalize()
             model.eval(sess, coco, data, vocabulary)
 
-        else:
-            # testing phase
+
+        elif FLAGS.phase == 'test':
+            #otherwise, do testing phase
+            print("User specified test, so testing trained network...")
+
             data, vocabulary = prepare_test_data(config)
             model = CaptionGenerator(config)
             model.load(sess, FLAGS.model_file)
             tf.get_default_graph().finalize()
             model.test(sess, data, vocabulary)
 
+        else:
+            #otherwise, phase arg is invalid
+            print('ERROR: the phase can be #train, #eval or #test, where #train is the default')
+
+            return
+
+
+
+#MAIN PROGRAM ENTRY PT
 if __name__ == '__main__':
+    print("Calling tf app.run()...")
+
+    #run the TensorFlow app
     tf.app.run()

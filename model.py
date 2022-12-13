@@ -1,8 +1,11 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import numpy as np
 
 from base_model import BaseModel
 
+import tf_slim as slim
+
+#class describing the actual Neural Network model
 class CaptionGenerator(BaseModel):
     def build(self):
         """ Build the model. """
@@ -25,9 +28,8 @@ class CaptionGenerator(BaseModel):
         """ Build the VGG16 net. """
         config = self.config
 
-        images = tf.placeholder(
-            dtype = tf.float32,
-            shape = [config.batch_size] + self.image_shape)
+        #CHANGE: TF1 to TF2
+        images = tf.placeholder(dtype = tf.float32,shape = [config.batch_size] + self.image_shape)
 
         conv1_1_feats = self.nn.conv2d(images, 64, name = 'conv1_1')
         conv1_2_feats = self.nn.conv2d(conv1_1_feats, 64, name = 'conv1_2')
@@ -51,8 +53,10 @@ class CaptionGenerator(BaseModel):
         conv5_2_feats = self.nn.conv2d(conv5_1_feats, 512, name = 'conv5_2')
         conv5_3_feats = self.nn.conv2d(conv5_2_feats, 512, name = 'conv5_3')
 
-        reshaped_conv5_3_feats = tf.reshape(conv5_3_feats,
-                                            [config.batch_size, 196, 512])
+        
+        #CHANGE to accomodate tf2
+        reshaped_conv5_3_feats = tf.reshape(conv5_3_feats, [config.batch_size, 196, 512])
+        #reshaped_conv5_3_feats = self.nn.reshape(conv5_3_feats, [config.batch_size, 196, 512], name="conv5_3")
 
         self.conv_feats = reshaped_conv5_3_feats
         self.num_ctx = 196
@@ -101,8 +105,10 @@ class CaptionGenerator(BaseModel):
         res5b_feats = self.resnet_block2(res5a_feats, 'res5b', 'bn5b', 512)
         res5c_feats = self.resnet_block2(res5b_feats, 'res5c', 'bn5c', 512)
 
-        reshaped_res5c_feats = tf.reshape(res5c_feats,
-                                         [config.batch_size, 49, 2048])
+
+        #CHANGE to accomodate tf2
+        reshaped_res5c_feats = tf.reshape(res5c_feats, [config.batch_size, 49, 2048])
+        #reshaped_res5c_feats = self.nn.reshape(res5c_feats, [config.batch_size, 49, 2048], name="res5c_feats")
 
         self.conv_feats = reshaped_res5c_feats
         self.num_ctx = 49
@@ -229,6 +235,7 @@ class CaptionGenerator(BaseModel):
         lstm = tf.nn.rnn_cell.LSTMCell(
             config.num_lstm_units,
             initializer = self.nn.fc_kernel_initializer)
+
         if self.is_train:
             lstm = tf.nn.rnn_cell.DropoutWrapper(
                 lstm,
@@ -238,7 +245,7 @@ class CaptionGenerator(BaseModel):
 
         # Initialize the LSTM using the mean context
         with tf.variable_scope("initialize"):
-            context_mean = tf.reduce_mean(self.conv_feats, axis = 1)
+            context_mean = tf.math.reduce_mean(self.conv_feats, axis = 1)
             initial_memory, initial_output = self.initialize(context_mean)
             initial_state = initial_memory, initial_output
 
@@ -271,8 +278,8 @@ class CaptionGenerator(BaseModel):
 
             # Embed the last word
             with tf.variable_scope("word_embedding"):
-                word_embed = tf.nn.embedding_lookup(embedding_matrix,
-                                                    last_word)
+                word_embed = tf.nn.embedding_lookup(embedding_matrix, last_word)
+
            # Apply the LSTM
             with tf.variable_scope("lstm"):
                 current_input = tf.concat([context, word_embed], 1)
@@ -471,6 +478,7 @@ class CaptionGenerator(BaseModel):
         config = self.config
 
         learning_rate = tf.constant(config.initial_learning_rate)
+
         if config.learning_rate_decay_factor < 1.0:
             def _learning_rate_decay_fn(learning_rate, global_step):
                 return tf.train.exponential_decay(
@@ -510,7 +518,7 @@ class CaptionGenerator(BaseModel):
                     learning_rate = config.initial_learning_rate
                 )
 
-            opt_op = tf.contrib.layers.optimize_loss(
+            opt_op = slim.optimize_loss(
                 loss = self.total_loss,
                 global_step = self.global_step,
                 learning_rate = learning_rate,

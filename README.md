@@ -1,3 +1,18 @@
+### Noah Weiner, Kaleb Gezahegn, Evan Strittmatter ###  
+
+## Changelog ##  
+* 12/11/22
+    1. Change some import statements (i.e. in eval.py, cider.py, bleu.py) and print statements to match Python 3.10 syntax
+    2. Create requirements.txt to specify what pip packages are required
+    3. In Tf2, there's no longer the tensorflow.contrib.layers package, so change anything that uses that pkg in nn.py to use the corresponding Tensorflow 2 keras element
+    4. In Python 3.10, you can no longer use tuples as function parameters. Change definition of cook_test() in blue_scorer.py to just unpack the tuples at beginning of function instead
+    5. For Tensorflow 2, change to use tf.compat.v1.flags instead of tf.app.flags, and tf.compat.v1 in general instead of tf (in many files, including model.py)
+    6. Replace tf.contrib.layers with Tf Slim
+    7. Follow instructions here, in general: https://www.tensorflow.org/guide/migrate
+    8. Some other quirks of Python3 vs. older versions of python, like using items() instead of iteritmes() on a dict
+    
+  
+  
 ### Introduction
 This neural system for image captioning is roughly based on the paper "Show, Attend and Tell: Neural Image Caption Generation with Visual Attention" by Xu et al. (ICML2015). The input is an image, and the output is a sentence describing the content of the image. It uses a convolutional neural network to extract visual features from the image, and uses a LSTM recurrent neural network to decode these features into a sentence. A soft attention mechanism is incorporated to improve the quality of the caption. This project is implemented using the Tensorflow library, and allows end-to-end training of both CNN and RNN parts.
 

@@ -79,8 +79,11 @@ class COCO:
         self.cats = {}
         self.img_name_to_id = {}
 
+        #if a JSON file is passed that contains the image captions, load them into memory (into the #dataset variable)
         if not annotation_file == None:
-            print('loading annotations into memory...')
+            print('Loading annotations into memory...')
+
+            #record how long loading annotations takes
             tic = time.time()
             dataset = json.load(open(annotation_file, 'r'))
 
@@ -309,10 +312,14 @@ class COCO:
                 q = q + '.'
             ann['caption'] = q
 
+
+    #filter the image captions by length
     def filter_by_cap_len(self, max_cap_len):
         print("Filtering the captions by length...")
         keep_ann = {}
         keep_img = {}
+
+
         for ann in tqdm(self.dataset['annotations']):
             if len(word_tokenize(ann['caption']))<=max_cap_len:
                 keep_ann[ann['id']] = keep_ann.get(ann['id'], 0) + 1

@@ -1,4 +1,4 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 #import tensorflow.contrib.layers as layers
 
@@ -13,24 +13,26 @@ class NN(object):
         self.prepare()
 
     def prepare(self):
-        """ Setup the weight initalizers and regularizers. """
+        """ Setup the weight initalizers and regularizers. Regularizers allow you to apply penalties on layer parameters or 
+        layer activity during optimization. These penalties are summed into the loss function that the network optimizes. """
         config = self.config
 
         #CHANGE: TF1 to TF2
         #self.conv_kernel_initializer = layers.xavier_initializer()
-        self.conv_kernel_initializer = keras.initalizers.glorot_normal
+        self.conv_kernel_initializer = keras.initializers.glorot_normal
+
 
         if self.train_cnn and config.conv_kernel_regularizer_scale > 0:
             #CHANGE: TF1 to TF2
             #self.conv_kernel_regularizer = layers.l2_regularizer(scale = config.conv_kernel_regularizer_scale)
-            self.conv_kernel_regularizer = keras.regularizers.l2(scale = config.conv_kernel_regularizer_scale)
+            self.conv_kernel_regularizer = keras.regularizers.l2(l2 = config.conv_kernel_regularizer_scale)
         else:
             self.conv_kernel_regularizer = None
 
         if self.train_cnn and config.conv_activity_regularizer_scale > 0:
             #CHANGE: TF1 to TF2
             #self.conv_activity_regularizer = layers.l1_regularizer(scale = config.conv_activity_regularizer_scale)
-            self.conv_activity_regularizer = keras.regularizers.l1(scale = config.conv_kernel_regularizer_scale)
+            self.conv_activity_regularizer = keras.regularizers.l1(l1 = config.conv_kernel_regularizer_scale)
         else:
             self.conv_activity_regularizer = None
 
@@ -39,14 +41,16 @@ class NN(object):
             maxval = config.fc_kernel_initializer_scale)
 
         if self.is_train and config.fc_kernel_regularizer_scale > 0:
-            self.fc_kernel_regularizer = layers.l2_regularizer(
-                scale = config.fc_kernel_regularizer_scale)
+            #CHANGE: TF1 to TF2
+            #self.fc_kernel_regularizer = layers.l2_regularizer(scale = config.fc_kernel_regularizer_scale)
+            self.fc_kernel_regularizer = keras.regularizers.l2(l2 = config.fc_kernel_regularizer_scale)
         else:
             self.fc_kernel_regularizer = None
 
         if self.is_train and config.fc_activity_regularizer_scale > 0:
-            self.fc_activity_regularizer = layers.l1_regularizer(
-                scale = config.fc_activity_regularizer_scale)
+            #CHANGE: TF1 to TF2
+            #self.fc_activity_regularizer = layers.l1_regularizer(scale = config.fc_activity_regularizer_scale)
+            self.fc_activity_regularizer = keras.regularizers.l1(l1 = config.fc_activity_regularizer_scale)
         else:
             self.fc_activity_regularizer = None
 
@@ -58,11 +62,14 @@ class NN(object):
                activation = tf.nn.relu,
                use_bias = True,
                name = None):
+
         """ 2D Convolution layer. """
         if activation is not None:
             activity_regularizer = self.conv_activity_regularizer
         else:
             activity_regularizer = None
+
+        #CHANGE: TF1 to TF2
         return tf.layers.conv2d(
             inputs = inputs,
             filters = filters,
@@ -77,12 +84,15 @@ class NN(object):
             activity_regularizer = activity_regularizer,
             name = name)
 
+
     def max_pool2d(self,
                    inputs,
                    pool_size = (2, 2),
                    strides = (2, 2),
                    name = None):
+
         """ 2D Max Pooling layer. """
+        #CHANGE: TF1 to TF2
         return tf.layers.max_pooling2d(
             inputs = inputs,
             pool_size = pool_size,
@@ -90,17 +100,22 @@ class NN(object):
             padding='same',
             name = name)
 
+    #dense layer convenience fxn
+    #just your regular densely-connected NN layer
     def dense(self,
               inputs,
               units,
               activation = tf.tanh,
               use_bias = True,
               name = None):
+
         """ Fully-connected layer. """
         if activation is not None:
             activity_regularizer = self.fc_activity_regularizer
         else:
             activity_regularizer = None
+
+        #CHANGE: TF1 to TF2
         return tf.layers.dense(
             inputs = inputs,
             units = units,
@@ -112,18 +127,26 @@ class NN(object):
             activity_regularizer = activity_regularizer,
             name = name)
 
+
+    #dropout layer convenience fxn
+    #a dropout layer applies Dropout to the input
     def dropout(self,
                 inputs,
                 name = None):
         """ Dropout layer. """
+        #CHANGE: TF1 to TF2
         return tf.layers.dropout(
             inputs = inputs,
             rate = self.config.fc_drop_rate,
             training = self.is_train)
 
+
+    #batchnorm layer convenience fxn
+    #a batchnorm layer is a layer that normalizes its inputs
     def batch_norm(self,
                    inputs,
                    name = None):
+
         """ Batch normalization layer. """
         return tf.layers.batch_normalization(
             inputs = inputs,
@@ -131,3 +154,11 @@ class NN(object):
             trainable = self.train_cnn,
             name = name
         )
+
+    
+    #reshape layer convenience fxn
+    def reshape(self,
+                inputs,
+                new_shape,
+                name = None):
+        return keras.layers.Reshape(target_shape = new_shape)

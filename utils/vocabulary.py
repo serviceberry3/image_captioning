@@ -5,6 +5,9 @@ from tqdm import tqdm
 import string
 from nltk.tokenize import word_tokenize
 
+
+#This class is used to represent an NLP vocabulary (unique set of words seen in some dataset)
+#In this case, it's the unique set of words seen in the set of image captions
 class Vocabulary(object):
     def __init__(self, size, save_file=None):
         self.words = []

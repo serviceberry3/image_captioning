@@ -1,0 +1,6 @@
+models
+test
+train
+val
+vgg16_no_fc.npy
+vocabulary.csv
