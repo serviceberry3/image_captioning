@@ -27,7 +27,7 @@ tf.flags.DEFINE_boolean('load', False,
 tf.flags.DEFINE_string('model_file', None,
                        'If specified, load a pretrained model from this file')
 
-tf.flags.DEFINE_boolean('load_cnn', False,
+tf.flags.DEFINE_boolean('load_cnn', True,
                         'Turn on to load a pretrained CNN model')
 
 tf.flags.DEFINE_string('cnn_model_file', './vgg16_no_fc.npy',
@@ -47,7 +47,9 @@ def main(argv):
     print("Calling main() in main.py...")
 
     #instantiate a Config object, and set some of its parameters based on user-passed args
+    #some parameters are also set by default in Config's constructor
     config = Config()
+
     config.phase = FLAGS.phase
     config.train_cnn = FLAGS.train_cnn
     config.beam_size = FLAGS.beam_size
@@ -64,7 +66,7 @@ def main(argv):
             data = prepare_train_data(config)
 
             #build the model
-            model = CaptionGenerator(config)
+            model = CaptionGenerator(config, "./train/captions_train2014.json")
 
             #run the TensorFlow training session
             sess.run(tf.global_variables_initializer())
@@ -76,10 +78,11 @@ def main(argv):
             #if user specified that CNN portion of model should be loaded from pretrained CNN file, load it
             if FLAGS.load_cnn:
                 model.load_cnn(sess, FLAGS.cnn_model_file)
-
             
             #get_default_graph() returns the default graph for the current thread
             tf.get_default_graph().finalize()
+
+            #run train() method in base_model
             model.train(sess, data)
 
 

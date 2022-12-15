@@ -3,6 +3,12 @@ import numpy as np
 import cv2
 import heapq
 
+#import coco api
+from pycocotools.coco import COCO
+import matplotlib.pyplot as plt
+
+import skimage.io as io
+
 class ImageLoader(object):
     def __init__(self, mean_file):
         self.bgr = True
@@ -10,9 +16,18 @@ class ImageLoader(object):
         self.crop_shape = np.array([224, 224], np.int32)
         self.mean = np.load(mean_file).mean(1).mean(1)
 
-    def load_image(self, image_file):
+
+    #function that loads images from a COCO link and preprocesses it
+    #CHANGED BY NWEINER on 12/14/22: load imgs from COCO api instead of disk
+    def load_image(self, image_link, coco_instance):
         """ Load and preprocess an image. """
-        image = cv2.imread(image_file)
+        #image = cv2.imread(image_file)
+
+        #print("load_image trying to load COCO image link", image_link)
+
+        #NWEINER CHANGED: instead of reading image from disk, get it from coco api
+        #open the image using io from skimage
+        image = io.imread(image_link)
 
         if self.bgr:
             temp = image.swapaxes(0, 2)
@@ -20,20 +35,32 @@ class ImageLoader(object):
             image = temp.swapaxes(0, 2)
 
         image = cv2.resize(image, (self.scale_shape[0], self.scale_shape[1]))
+
         offset = (self.scale_shape - self.crop_shape) / 2
+
         offset = offset.astype(np.int32)
-        image = image[offset[0]:offset[0]+self.crop_shape[0],
-                      offset[1]:offset[1]+self.crop_shape[1]]
+
+        image = image[offset[0]:offset[0]+self.crop_shape[0], offset[1]:offset[1]+self.crop_shape[1]]
+
         image = image - self.mean
+
         return image
 
-    def load_images(self, image_files):
+
+    #CHANGED BY NWEINER on 12/14/22: load via image links, not files
+    def load_images(self, image_links, coco_instance):
         """ Load and preprocess a list of images. """
         images = []
-        for image_file in image_files:
-            images.append(self.load_image(image_file))
+
+        #CHANGED BY NWEINER on 12/14/22: load using COCO API
+        for image_link in image_links:
+            images.append(self.load_image(image_link, coco_instance))
+
+        #turn images into np array of 32-bit floats
         images = np.array(images, np.float32)
         return images
+
+
 
 class CaptionData(object):
     def __init__(self, sentence, memory, output, score):
@@ -58,6 +85,8 @@ class CaptionData(object):
     def __eq__(self, other):
         assert isinstance(other, CaptionData)
         return self.score == other.score
+
+
 
 class TopN(object):
     def __init__(self, n):

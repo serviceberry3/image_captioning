@@ -13,27 +13,45 @@ class Vocabulary(object):
         self.words = []
         self.word2idx = {}
         self.word_frequencies = []
-        self.size = size
+
+        self.size = 0
+
+
+        #if loading from existing vocab CSV file, load it now
         if save_file is not None:
             self.load(save_file)
 
+
     def build(self, sentences):
-        """ Build the vocabulary and compute the frequency of each word. """
+        """ Build the vocabulary from the list of captions passed, and compute the frequency of each word. """
+        #print("in build() in vocabulary.py")
+
+        #this var is a dict mapping words in the captions to their frequencies
         word_counts = {}
+
+        #iterate over all 
         for sentence in tqdm(sentences):
+            #get list of words that occur in the sentence
             for w in word_tokenize(sentence.lower()):
+                #increment word count if we see this word
                 word_counts[w] = word_counts.get(w, 0) + 1.0
 
-        assert self.size-1 <= len(word_counts.keys())
+
+        #set vocab size now
+        #CHANGED BY NWEINER on 12/14/22
+        self.size = len(word_counts.keys())
+        #print(word_counts.keys())
+
+        #make sure size has been set appropriately
+        assert self.size - 1 <= len(word_counts.keys())
+
         self.words.append('<start>')
         self.word2idx['<start>'] = 0
         self.word_frequencies.append(1.0)
 
-        word_counts = sorted(list(word_counts.items()),
-                            key=lambda x: x[1],
-                            reverse=True)
+        word_counts = sorted(list(word_counts.items()), key=lambda x: x[1], reverse=True)
 
-        for idx in range(self.size-1):
+        for idx in range(self.size - 1):
             word, frequency = word_counts[idx]
             self.words.append(word)
             self.word2idx[word] = idx + 1
@@ -47,12 +65,15 @@ class Vocabulary(object):
 
 
     def process_sentence(self, sentence):
-        """ Tokenize a sentence, and translate each token into its index
-            in the vocabulary. """
+        """ Tokenize a sentence, and translate each token into its index in the vocabulary. """
+        #tokenize words (get list of all unique words in sentence)
         words = word_tokenize(sentence.lower())
-        word_idxs = [self.word2idx[w] for w in words]
-        return word_idxs
+        #print(words)
 
+        #for each word, convert word to an index using our vocabulary
+        word_idxs = [self.word2idx[w] for w in words]
+
+        return word_idxs
 
 
     def get_sentence(self, idxs):
@@ -67,12 +88,12 @@ class Vocabulary(object):
                             else w for w in words]).strip()
         return sentence
 
+
     def save(self, save_file):
-        """ Save the vocabulary to a file. """
-        data = pd.DataFrame({'word': self.words,
-                             'index': list(range(self.size)),
-                             'frequency': self.word_frequencies})
+        """ Save the vocabulary to a CSV file. """
+        data = pd.DataFrame({'word': self.words, 'index': list(range(self.size)), 'frequency': self.word_frequencies})
         data.to_csv(save_file)
+
 
     def load(self, save_file):
         """ Load the vocabulary from a file. """

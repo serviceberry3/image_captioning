@@ -6,11 +6,13 @@ from base_model import BaseModel
 import tf_slim as slim
 
 #class describing the actual Neural Network model
+#notice that the class inherits from BaseModel
 class CaptionGenerator(BaseModel):
     def build(self):
         """ Build the model. """
         self.build_cnn()
         self.build_rnn()
+
         if self.is_train:
             self.build_optimizer()
             self.build_summary()

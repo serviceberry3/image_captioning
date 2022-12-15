@@ -25,11 +25,11 @@ class Config(object):
         self.attention_loss_factor = 0.01
 
         # about the optimization
-        self.num_epochs = 100 #number of epochs to train for
-        self.batch_size = 32 #batch size
+        self.num_epochs = 100 #number of epochs to train for WAS 100
+        self.batch_size = 32 #batch size WAS 32
         self.optimizer = 'Adam'    # 'Adam', 'RMSProp', 'Momentum' or 'SGD'
         self.initial_learning_rate = 0.0001
-        self.learning_rate_decay_factor = 1.0
+        self.learning_rate_decay_factor = 1.05000
         self.num_steps_per_decay = 100000
         self.clip_gradients = 5.0
         self.momentum = 0.0
@@ -47,7 +47,7 @@ class Config(object):
 
         # about the vocabulary
         self.vocabulary_file = './vocabulary.csv'
-        self.vocabulary_size = 5000
+        self.vocabulary_size = 0
 
         # about the training
         self.train_image_dir = './train/images/'

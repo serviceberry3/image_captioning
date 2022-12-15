@@ -11,21 +11,30 @@ import json
 from tqdm import tqdm
 
 from utils.nn import NN
-from utils.coco.coco import COCO
+from utils.coco.coco import COCO as myCOCO
+
+from pycocotools.coco import COCO as theyCOCO
+
 from utils.coco.pycocoevalcap.eval import COCOEvalCap
 from utils.misc import ImageLoader, CaptionData, TopN
 
 class BaseModel(object):
-    def __init__(self, config):
+    #when constructing object instance, need to pass the config instance, and the name of the annotations JSON file to be used for collecting images and captions
+    def __init__(self, config, ann_file):
         self.config = config
         self.is_train = True if config.phase == 'train' else False
         self.train_cnn = self.is_train and config.train_cnn
+
+        #ADDED BY NWEINER 12/14/22: save the annotation file
+        self.ann_file = ann_file
+
+        print("model constructor: ann_file is", self.ann_file)
+
         self.image_loader = ImageLoader('./utils/ilsvrc_2012_mean.npy')
+
         self.image_shape = [224, 224, 3]
         self.nn = NN(config)
-        self.global_step = tf.Variable(0,
-                                       name = 'global_step',
-                                       trainable = False)
+        self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
         self.build()
 
     def build(self):
@@ -33,34 +42,50 @@ class BaseModel(object):
 
     def train(self, sess, train_data):
         """ Train the model using the COCO train2014 data. """
-        print("Training the model...")
+        print("Training the model via train() in base_model.py...")
+
         config = self.config
 
         if not os.path.exists(config.summary_dir):
             os.mkdir(config.summary_dir)
-        train_writer = tf.summary.FileWriter(config.summary_dir,
-                                             sess.graph)
 
+        train_writer = tf.summary.FileWriter(config.summary_dir, sess.graph)
+
+        #ADDED BY NWEINER 12/14/22
+        #instantiate an instance of COCO
+        coco_caps = myCOCO(self.ann_file)
+
+        #iterate over all training epochs
         for _ in tqdm(list(range(config.num_epochs)), desc='epoch'):
+            #iterate over all training data batches
             for _ in tqdm(list(range(train_data.num_batches)), desc='batch'):
+                #get next batch of training data
                 batch = train_data.next_batch()
-                image_files, sentences, masks = batch
-                images = self.image_loader.load_images(image_files)
-                feed_dict = {self.images: images,
-                             self.sentences: sentences,
-                             self.masks: masks}
-                _, summary, global_step = sess.run([self.opt_op,
-                                                    self.summary,
-                                                    self.global_step],
-                                                    feed_dict=feed_dict)
+
+                #from batch, extract the lists of image links, the corresponding captions, and the corresponding masks
+                image_ids, image_links, sentences, masks = batch
+
+                #load all images for this batch via COCO api and store them in a list
+                images = self.image_loader.load_images(image_links, coco_caps)
+                
+                feed_dict = {self.images: images, self.sentences: sentences, self.masks: masks}
+
+
+                _, summary, global_step = sess.run([self.opt_op, self.summary, self.global_step], feed_dict=feed_dict)
+
+
                 if (global_step + 1) % config.save_period == 0:
                     self.save()
+
                 train_writer.add_summary(summary, global_step)
             train_data.reset()
 
         self.save()
+
         train_writer.close()
+
         print("Training complete.")
+
 
     def eval(self, sess, eval_gt_coco, eval_data, vocabulary):
         """ Evaluate the model using the COCO val2014 data. """
@@ -73,20 +98,19 @@ class BaseModel(object):
 
         # Generate the captions for the images
         idx = 0
+
         for k in tqdm(list(range(eval_data.num_batches)), desc='batch'):
             batch = eval_data.next_batch()
             caption_data = self.beam_search(sess, batch, vocabulary)
 
-            fake_cnt = 0 if k<eval_data.num_batches-1 else eval_data.fake_count
-
+            fake_cnt = 0 if k < eval_data.num_batches - 1 else eval_data.fake_count
 
 
             for l in range(eval_data.batch_size-fake_cnt):
                 word_idxs = caption_data[l][0].sentence
                 score = caption_data[l][0].score
                 caption = vocabulary.get_sentence(word_idxs)
-                results.append({'image_id': eval_data.image_ids[idx],
-                                'caption': caption})
+                results.append({'image_id': eval_data.image_ids[idx], 'caption': caption})
                 idx += 1
 
                 # Save the result in an image file, if requested
@@ -129,6 +153,8 @@ class BaseModel(object):
 
             fake_cnt = 0 if k<test_data.num_batches-1 \
                          else test_data.fake_count
+
+
             for l in range(test_data.batch_size-fake_cnt):
                 word_idxs = caption_data[l][0].sentence
                 score = caption_data[l][0].score
@@ -144,13 +170,13 @@ class BaseModel(object):
                 plt.imshow(img)
                 plt.axis('off')
                 plt.title(caption)
-                plt.savefig(os.path.join(config.test_result_dir,
-                                         image_name+'_result.jpg'))
+                plt.savefig(os.path.join(config.test_result_dir, image_name+'_result.jpg'))
 
         # Save the captions to a file
         results = pd.DataFrame({'image_files':test_data.image_files,
                                 'caption':captions,
                                 'prob':scores})
+                                
         results.to_csv(config.test_result_file)
         print("Testing complete.")
 
@@ -226,6 +252,7 @@ class BaseModel(object):
                             partial_caption_data[k].push(beam)
 
         results = []
+
         for k in range(config.batch_size):
             if complete_caption_data[k].size() == 0:
                 complete_caption_data[k] = partial_caption_data[k]
@@ -259,8 +286,7 @@ class BaseModel(object):
             config = pickle.load(info_file)
             global_step = config.global_step
             info_file.close()
-            save_path = os.path.join(config.save_dir,
-                                     str(global_step)+".npy")
+            save_path = os.path.join(config.save_dir, str(global_step)+".npy")
 
         print("Loading the model from %s..." %save_path)
         data_dict = np.load(save_path, allow_pickle = True, encoding = 'latin1').item()

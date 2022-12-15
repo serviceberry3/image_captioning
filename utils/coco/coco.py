@@ -58,9 +58,12 @@ import itertools
 import os
 import string
 
-
 from tqdm import tqdm
 from nltk.tokenize import word_tokenize
+
+#CHANGE by NWEINER on 12/14/22:
+#we'll trim the amount of data we're using from COCO
+NUM_DATA = 82787
 
 class COCO:
     def __init__(self, annotation_file=None):
@@ -79,23 +82,46 @@ class COCO:
         self.cats = {}
         self.img_name_to_id = {}
 
+
         #if a JSON file is passed that contains the image captions, load them into memory (into the #dataset variable)
         if not annotation_file == None:
             print('Loading annotations into memory...')
 
-            #record how long loading annotations takes
+            #load the annotations file, and record how long loading annotations takes
             tic = time.time()
+
+            #json.load() takes the file and returns a JSON object, which contains data in form of key/value pairs
             dataset = json.load(open(annotation_file, 'r'))
+            print('Finished loading', annotation_file, 'in %0.2fs'%(time.time()- tic))
 
-            print('Done (t=%0.2fs)'%(time.time()- tic))
-
+            #save the JSON object into the "dataset" property of this COCO object
             self.dataset = dataset
+
+            #trim to the amt of data we want to use
+            if 'annotations' in self.dataset:
+                print("found 'annotations' section in the JSON")
+                self.dataset['annotations'] = self.dataset['annotations'][:NUM_DATA]
+                #print(self.dataset['annotations'])
+
+            if 'images' in self.dataset:
+                print("found 'images' section in the JSON")
+                #self.dataset['images'] = self.dataset['images'][:NUM_DATA]
+                #print(self.dataset['images'])
+
+            if 'categories' in self.dataset:
+                print("found 'categories' section in the JSON")
+                #self.dataset['categories'] = self.dataset['categories'][:NUM_DATA]
+
+            #this function changes captions to all lowercase
             self.process_dataset()
+
             self.createIndex()
+
+
 
     def createIndex(self):
         # create index
-        print('creating index...')
+        print('Loading JSON data into convenient dicts via createIndex()...')
 
         anns = {}
         imgToAnns = {}
@@ -105,38 +131,74 @@ class COCO:
         img_name_to_id = {}
 
 
+        #if the JSON object contains "annotations" section
         if 'annotations' in self.dataset:
+            #get list of all image IDs
             imgToAnns = {ann['image_id']: [] for ann in self.dataset['annotations']}
+
+            #get list of all annotation IDs
             anns =      {ann['id']:       [] for ann in self.dataset['annotations']}
 
+
+            #for each annotation, 
             for ann in self.dataset['annotations']:
+                #the #imgToAnns var maps image id to the annotation dict for that image
                 imgToAnns[ann['image_id']] += [ann]
+
+                #the #anns var maps annotation id to the annotation dict for that image
                 anns[ann['id']] = ann
 
+
+        #if the JSON object contains "images" section
         if 'images' in self.dataset:
+            #get list of all image IDs, populating only keys with the image id
             imgs      = {im['id']: {} for im in self.dataset['images']}
 
+            #for each image dict
             for img in self.dataset['images']:
+                #the #imgs var maps image id to the dictionary containing rest of image data
                 imgs[img['id']] = img
-                img_name_to_id[img['file_name']] = img['id']
+
+                #the #img_name_to_id var maps image coco URL to image id
+                #CHANGE BY NWEINER: instead of using file_name, I'll use coco url
+                img_name_to_id[img['coco_url']] = img['id']
+                #img_name_to_id[img['file_name']] = img['id']
+
+
 
         if 'categories' in self.dataset:
-            cats = {cat['id']: [] for cat in self.dataset['categories']}
-            for cat in self.dataset['categories']:
+            cats = {cat['id']: [] for cat in self.dataset['categories'][:NUM_DATA]}
+
+            for cat in self.dataset['categories'][:NUM_DATA]:
                 cats[cat['id']] = cat
-            catToImgs = {cat['id']: [] for cat in self.dataset['categories']}
-            for ann in self.dataset['annotations']:
+
+            catToImgs = {cat['id']: [] for cat in self.dataset['categories'][:NUM_DATA]}
+
+            for ann in self.dataset['annotations'][:NUM_DATA]:
                 catToImgs[ann['category_id']] += [ann['image_id']]
 
-        print('index created!')
+        print('Index creation complete.')
 
         # create class members
+
+        #maps annotation id to annotation dict
         self.anns = anns
+
+        #maps image id to annotation dict
         self.imgToAnns = imgToAnns
+
         self.catToImgs = catToImgs
+
+        #maps image id to dict containing image data
         self.imgs = imgs
+
+
         self.cats = cats
+
+        #remember, I changed this on 12/14/22 to map the COCO url for the image to the id of that image
         self.img_name_to_id = img_name_to_id
+
+
 
     def info(self):
         """
@@ -145,6 +207,8 @@ class COCO:
         """
         for key, value in self.dataset['info'].items():
             print('%s: %s'%(key, value))
+
+
 
     def getAnnIds(self, imgIds=[], catIds=[], areaRng=[], iscrowd=None):
         """
@@ -241,6 +305,7 @@ class COCO:
         elif type(ids) == int:
             return [self.cats[ids]]
 
+    #load the data about the image with the passed id(s), including COCO url for that img
     def loadImgs(self, ids=[]):
         """
         Load anns with the specified ids.
@@ -248,8 +313,10 @@ class COCO:
         :return: imgs (object array) : loaded img objects
         """
         if type(ids) == list:
+            print("ids is a list")
             return [self.imgs[id] for id in ids]
         elif type(ids) == int:
+            print("loadImgs: id is", ids)
             return [self.imgs[ids]]
 
     def loadRes(self, resFile):
@@ -305,11 +372,19 @@ class COCO:
                 urllib.urlretrieve(img['coco_url'], fname)
             print('downloaded %d/%d images (t=%.1fs)'%(i, N, time.time()- tic))
 
+
+    #process the json annotations file for this COCO object
     def process_dataset(self):
+        #for each json entry in the "annotations" section of the JSON file
         for ann in self.dataset['annotations']:
+            #change caption to all lowercase
             q = ann['caption'].lower()
-            if q[-1]!='.':
+
+            #make sure caption ends with a sentence
+            if q[-1] != '.':
                 q = q + '.'
+
+            #save the new modded caption
             ann['caption'] = q
 
 
@@ -319,7 +394,6 @@ class COCO:
         keep_ann = {}
         keep_img = {}
 
-
         for ann in tqdm(self.dataset['annotations']):
             if len(word_tokenize(ann['caption']))<=max_cap_len:
                 keep_ann[ann['id']] = keep_ann.get(ann['id'], 0) + 1
@@ -328,6 +402,7 @@ class COCO:
         self.dataset['annotations'] = \
             [ann for ann in self.dataset['annotations'] \
             if keep_ann.get(ann['id'],0)>0]
+
         self.dataset['images'] = \
             [img for img in self.dataset['images'] \
             if keep_img.get(img['id'],0)>0]
@@ -350,11 +425,15 @@ class COCO:
         self.dataset['annotations'] = \
             [ann for ann in self.dataset['annotations'] \
             if keep_ann.get(ann['id'],0)>0]
+
         self.dataset['images'] = \
             [img for img in self.dataset['images'] \
             if keep_img.get(img['id'],0)>0]
 
         self.createIndex()
 
+
+
+    #return list of all image captions
     def all_captions(self):
         return [ann['caption'] for ann_id, ann in self.anns.items()]
