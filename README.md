@@ -1,21 +1,21 @@
 ### Noah Weiner, Kaleb Gezahegn, Evan Strittmatter ###  
 
 ## Changelog - Noah Weiner ##  
-* 12/11/22
-    1. Change some import statements (i.e. in eval.py, cider.py, bleu.py) and print statements to match Python 3.10 syntax
-    2. Create requirements.txt to specify what pip packages are required
-    3. In Tf2, there's no longer the tensorflow.contrib.layers package, so change anything that uses that pkg in nn.py to use the corresponding Tensorflow 2 keras element
-    4. In Python 3.10, you can no longer use tuples as function parameters. Change definition of cook_test() in blue_scorer.py to just unpack the tuples at beginning of function instead
-    5. For Tensorflow 2, change to use tf.compat.v1.flags instead of tf.app.flags, and tf.compat.v1 in general instead of tf (in many files, including model.py)
-    6. Replace tf.contrib.layers with Tf Slim
-    7. Follow instructions here, in general: https://www.tensorflow.org/guide/migrate
-    8. Some other quirks of Python3 vs. older versions of python, like using items() instead of iteritmes() on a dict
-* 12/14/22
-    9. Change the all_captions(), createIndex(), and init() functions in coco.py to optionally pull the COCO image url instead of creating the local filename for each image.
-    10. Add comments (walk through/understand code), improve variable names, and reduce lines of code in coco.py, dataset.py, main.py, and vocabulary.py.
+* 12/11/22  
+    1. Change some import statements (i.e. in eval.py, cider.py, bleu.py) and print statements to match Python 3.10 syntax  
+    2. Create requirements.txt to specify what pip packages are required  
+    3. In Tf2, there's no longer the tensorflow.contrib.layers package, so change anything that uses that pkg in nn.py to use the corresponding Tensorflow 2 keras element  
+    4. In Python 3.10, you can no longer use tuples as function parameters. Change definition of cook_test() in blue_scorer.py to just unpack the tuples at beginning of function instead  
+    5. For Tensorflow 2, change to use tf.compat.v1.flags instead of tf.app.flags, and tf.compat.v1 in general instead of tf (in many files, including model.py)  
+    6. Replace tf.contrib.layers with Tf Slim  
+    7. Follow instructions here, in general: https://www.tensorflow.org/guide/migrate  
+    8. Some other quirks of Python3 vs. older versions of python, like using items() instead of iteritmes() on a dict  
+* 12/14/22  
+    9. Change the all_captions(), createIndex(), and init() functions in coco.py to optionally pull the COCO image url instead of creating the local filename for each image.  
+    10. Add comments (walk through/understand code), improve variable names, and reduce lines of code in coco.py, dataset.py, main.py, and vocabulary.py.  
     11. Change prepare_train_data() in dataset.py to look at images in train/images local folder, extract the image IDs for the images from their filenames, and create the pandas dataframe by pulling only those images and
-    their captions from the annotations section of the COCO JSON annotations file.
-    12. Add a clean.sh script to remove large temporary files that are created at runtime (i.e. vocabulary csv file, model checkpoints, the csv file containing the dataframe of all img IDs and their captions).
+    their captions from the annotations section of the COCO JSON annotations file.  
+    12. Add a clean.sh script to remove large temporary files that are created at runtime (i.e. vocabulary csv file, model checkpoints, the csv file containing the dataframe of all img IDs and their captions).  
     
   
   
