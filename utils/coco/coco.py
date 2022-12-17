@@ -65,6 +65,9 @@ from nltk.tokenize import word_tokenize
 #we'll trim the amount of data we're using from COCO
 NUM_DATA = 82787
 
+#specify whether to pull images from local disk, or use COCO api to fetch them via URLs
+LOCAL = True
+
 class COCO:
     def __init__(self, annotation_file=None):
         """
@@ -73,14 +76,17 @@ class COCO:
         :param image_folder (str): location to the folder that hosts images.
         :return:
         """
-        # load dataset
+        
+        #dicts to keep track of annotation data (see createIndex() function for more info)
         self.dataset = {}
-        self.anns = []
-        self.imgToAnns = {}
+        self.annId_to_ann = {}
+        self.imgId_to_ann = {}
         self.catToImgs = {}
-        self.imgs = {}
+        self.imgId_to_img = {}
         self.cats = {}
-        self.img_name_to_id = {}
+        self.imgName_to_id = {}
+
+        self.list_of_img_ids_were_using = []
 
 
         #if a JSON file is passed that contains the image captions, load them into memory (into the #dataset variable)
@@ -97,15 +103,16 @@ class COCO:
             #save the JSON object into the "dataset" property of this COCO object
             self.dataset = dataset
 
-            #trim to the amt of data we want to use
+            #should we trim to the amt of data we want to use?
             if 'annotations' in self.dataset:
-                print("found 'annotations' section in the JSON")
-                self.dataset['annotations'] = self.dataset['annotations'][:NUM_DATA]
+                #print("found 'annotations' section in the JSON")
+                self.dataset['annotations'] = self.dataset['annotations']
+                #self.dataset['annotations'] = self.dataset['annotations'][:NUM_DATA]
                 #print(self.dataset['annotations'])
 
             if 'images' in self.dataset:
-                print("found 'images' section in the JSON")
-                #self.dataset['images'] = self.dataset['images'][:NUM_DATA]
+                #print("found 'images' section in the JSON")
+                self.dataset['images'] = self.dataset['images']
                 #print(self.dataset['images'])
 
             if 'categories' in self.dataset:
@@ -118,85 +125,105 @@ class COCO:
             self.createIndex()
 
 
-
+    #using the JSON object extracted from the COCO annotations file, create some dicts to organize the data into an "index"
+    #NOTE: each unique-id-image can have multiple annotations, each annotation having its own unique annotation ID and its own unique caption
     def createIndex(self):
-        # create index
         print('Loading JSON data into convenient dicts via createIndex()...')
 
-        anns = {}
-        imgToAnns = {}
+        #COCO json has various sections. images section contains image IDs, license info, file name info, URL for img, etc.
+        #annotations section contains image id and metadata about the image, including its caption, area, etc.
+
+        #dict that maps annotation ID to the annotation (a dict) itself
+        annId_to_ann = {}
+
+        #dict that maps image ID to the image annotation (a dict)
+        imgId_to_ann = {}
+
+
         catToImgs = {}
         cats = {}
-        imgs = {}
-        img_name_to_id = {}
+
+        #dict that maps image ID to image metadata
+        imgId_to_img = {}
+
+        #dict that maps [either image URL or image filename] to the image ID
+        imgName_to_id = {}
 
 
         #if the JSON object contains "annotations" section
         if 'annotations' in self.dataset:
-            #get list of all image IDs
-            imgToAnns = {ann['image_id']: [] for ann in self.dataset['annotations']}
-
-            #get list of all annotation IDs
-            anns =      {ann['id']:       [] for ann in self.dataset['annotations']}
-
-
-            #for each annotation, 
+            #for each annotation
             for ann in self.dataset['annotations']:
-                #the #imgToAnns var maps image id to the annotation dict for that image
-                imgToAnns[ann['image_id']] += [ann]
+                imgId_to_ann[ann['image_id']] = []
 
-                #the #anns var maps annotation id to the annotation dict for that image
-                anns[ann['id']] = ann
+                #create an entry in the dict that maps image ID to the annotation dict for that image, and populate entry key with the image ID
+                #this dict maps image id to the annotation dict for that image. populate the value of each entry with the annotation
+                imgId_to_ann[ann['image_id']] += [ann]
+
+                #create entry in dict that maps annotation ID to the annotation dict for that image, and populate entry key with the annotation ID
+                #this dict maps annotation id to the annotation dict for that image. populate the value of each entry with the annotation
+                annId_to_ann[ann['id']] = ann
+
+                '''
+                if (ann['image_id'] == 673):
+                    print("imgid_to_ann entry is", imgId_to_ann[ann['image_id']])
+                    print("annid_to_ann entry is", annId_to_ann[ann['id']])
+                '''
+
+            #this is another way to do this (with one-line codes)
+            #imgId_to_ann = {ann['image_id']: [] for ann in self.dataset['annotations']}
+            #annId_to_ann = {ann['id']: [] for ann in self.dataset['annotations']}
 
 
         #if the JSON object contains "images" section
         if 'images' in self.dataset:
             #get list of all image IDs, populating only keys with the image id
-            imgs      = {im['id']: {} for im in self.dataset['images']}
+            imgId_to_img = {im['id']: {} for im in self.dataset['images']}
 
             #for each image dict
             for img in self.dataset['images']:
                 #the #imgs var maps image id to the dictionary containing rest of image data
-                imgs[img['id']] = img
+                imgId_to_img[img['id']] = img
 
-                #the #img_name_to_id var maps image coco URL to image id
+                #the #img_name_to_id var maps image coco URL or file name to image id
                 #CHANGE BY NWEINER: instead of using file_name, I'll use coco url
-                img_name_to_id[img['coco_url']] = img['id']
-                #img_name_to_id[img['file_name']] = img['id']
+                if LOCAL:
+                    imgName_to_id[img['file_name']] = img['id']
+                else:
+                    imgName_to_id[img['coco_url']] = img['id']
 
 
-
+        #if the JSON object contains "categories" section
         if 'categories' in self.dataset:
-            cats = {cat['id']: [] for cat in self.dataset['categories'][:NUM_DATA]}
+            cats = {cat['id']: [] for cat in self.dataset['categories']}
 
-            for cat in self.dataset['categories'][:NUM_DATA]:
+            for cat in self.dataset['categories']:
                 cats[cat['id']] = cat
 
-            catToImgs = {cat['id']: [] for cat in self.dataset['categories'][:NUM_DATA]}
+            catToImgs = {cat['id']: [] for cat in self.dataset['categories']}
 
-            for ann in self.dataset['annotations'][:NUM_DATA]:
+            for ann in self.dataset['annotations']:
                 catToImgs[ann['category_id']] += [ann['image_id']]
 
         print('Index creation complete.')
 
-        # create class members
+        #save the indices (dicts) we've created as class properties
 
         #maps annotation id to annotation dict
-        self.anns = anns
+        self.annId_to_ann = annId_to_ann
 
         #maps image id to annotation dict
-        self.imgToAnns = imgToAnns
+        self.imgId_to_ann = imgId_to_ann
 
         self.catToImgs = catToImgs
 
         #maps image id to dict containing image data
-        self.imgs = imgs
-
+        self.imgId_to_img = imgId_to_img
 
         self.cats = cats
 
-        #remember, I changed this on 12/14/22 to map the COCO url for the image to the id of that image
-        self.img_name_to_id = img_name_to_id
+        #remember, I changed this on 12/14/22 to optionally map the COCO url for the image to the id of that image, instead of the local filename
+        self.imgName_to_id = imgName_to_id
 
 
 
@@ -240,6 +267,7 @@ class COCO:
             ids = [ann['id'] for ann in anns]
         return ids
 
+
     def getCatIds(self, catNms=[], supNms=[], catIds=[]):
         """
         filtering parameters. default skips that filter.
@@ -262,6 +290,7 @@ class COCO:
         ids = [cat['id'] for cat in cats]
         return ids
 
+
     def getImgIds(self, imgIds=[], catIds=[]):
         '''
         Get img ids that satisfy given filter conditions.
@@ -283,6 +312,7 @@ class COCO:
                     ids &= set(self.catToImgs[catId])
         return list(ids)
 
+
     def loadAnns(self, ids=[]):
         """
         Load anns with the specified ids.
@@ -294,6 +324,7 @@ class COCO:
         elif type(ids) == int:
             return [self.anns[ids]]
 
+
     def loadCats(self, ids=[]):
         """
         Load cats with the specified ids.
@@ -304,6 +335,7 @@ class COCO:
             return [self.cats[id] for id in ids]
         elif type(ids) == int:
             return [self.cats[ids]]
+
 
     #load the data about the image with the passed id(s), including COCO url for that img
     def loadImgs(self, ids=[]):
@@ -318,6 +350,7 @@ class COCO:
         elif type(ids) == int:
             print("loadImgs: id is", ids)
             return [self.imgs[ids]]
+
 
     def loadRes(self, resFile):
         """
@@ -348,6 +381,8 @@ class COCO:
         res.createIndex()
         return res
 
+
+
     def download( self, tarDir = None, imgIds = [] ):
         '''
         Download COCO images from mscoco.org server.
@@ -363,8 +398,11 @@ class COCO:
         else:
             imgs = self.loadImgs(imgIds)
         N = len(imgs)
+
         if not os.path.exists(tarDir):
             os.makedirs(tarDir)
+
+
         for i, img in enumerate(imgs):
             tic = time.time()
             fname = os.path.join(tarDir, img['file_name'])
@@ -395,45 +433,60 @@ class COCO:
         keep_img = {}
 
         for ann in tqdm(self.dataset['annotations']):
-            if len(word_tokenize(ann['caption']))<=max_cap_len:
+            if len(word_tokenize(ann['caption'])) <= max_cap_len:
                 keep_ann[ann['id']] = keep_ann.get(ann['id'], 0) + 1
                 keep_img[ann['image_id']] = keep_img.get(ann['image_id'], 0) + 1
 
+
         self.dataset['annotations'] = \
             [ann for ann in self.dataset['annotations'] \
-            if keep_ann.get(ann['id'],0)>0]
+            if keep_ann.get(ann['id'],0) > 0]
 
         self.dataset['images'] = \
             [img for img in self.dataset['images'] \
-            if keep_img.get(img['id'],0)>0]
+            if keep_img.get(img['id'], 0) > 0]
 
         self.createIndex()
 
+
     def filter_by_words(self, vocab):
         print("Filtering the captions by words...")
+
         keep_ann = {}
         keep_img = {}
+
+        #for all of the annotations in the JSON
         for ann in tqdm(self.dataset['annotations']):
             keep_ann[ann['id']] = 1
+
+            #get list of words in this caption
             words_in_ann = word_tokenize(ann['caption'])
+
+
+            #check whether this caption contains a word that is not in the vocabulary. if it does, flag the annotation to be removed completely
             for word in words_in_ann:
                 if word not in vocab:
                     keep_ann[ann['id']] = 0
                     break
+
+
             keep_img[ann['image_id']] = keep_img.get(ann['image_id'], 0) + 1
 
+        #prune some annotations (which correspond to captions, in this case) out of the annotations set
         self.dataset['annotations'] = \
             [ann for ann in self.dataset['annotations'] \
-            if keep_ann.get(ann['id'],0)>0]
+            if keep_ann.get(ann['id'], 0) > 0]
 
+        #also prune images
         self.dataset['images'] = \
             [img for img in self.dataset['images'] \
-            if keep_img.get(img['id'],0)>0]
+            if keep_img.get(img['id'],0) > 0]
 
+        #remake the index
         self.createIndex()
 
 
 
     #return list of all image captions
     def all_captions(self):
-        return [ann['caption'] for ann_id, ann in self.anns.items()]
+        return [ann['caption'] for ann_id, ann in self.annId_to_ann.items() if ann['image_id'] in self.list_of_img_ids_were_using]

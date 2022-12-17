@@ -17,6 +17,9 @@ import pylab
 
 import matplotlib.pyplot as plt
 
+#set this to True if you want to draw from images stored locally on disk. else will use COCO API to fetch images via URL
+LOCAL = True
+
 '''
 Class that serves as a container for the dataset.
 '''
@@ -96,6 +99,25 @@ def prepare_train_data(config):
     #instantiate a COCO Python object, passing the JSON annotation file containing all the captions for all training images
     coco = myCOCO(config.train_caption_file)
 
+    #pull caption for each image into a list
+    #captions = [coco.anns[ann_id]['caption'] for ann_id in coco.anns]
+
+    #get the list of all files and directories
+    path = "../image_captioning/train/images"
+    files_list = os.listdir(path)
+
+    #init empty list to hold all IDs of images stored locally
+    ids = []
+
+    #iterate through list of filenames
+    for file in files_list:
+        #make sure this is not a JSON file
+        if (file[-3:] != 'son'):
+            #extract the annotation ID corresponding to the jpg file, and append it to the running list of found IDs
+            ids.append(int(file[20:27]))
+
+    coco.list_of_img_ids_were_using = ids
+
     #filter by caption lengths
     coco.filter_by_cap_len(config.max_caption_length)
 
@@ -116,28 +138,42 @@ def prepare_train_data(config):
     print("Number of words = %d" %(vocabulary.size))
 
     #filter captions by words
+    #set is like a Python list but can have mixed datatypes
     coco.filter_by_words(set(vocabulary.words))
 
-    #process image captions
+    #process image captionsa
     print("Processing the captions (converting them to lists of word indices)...")
 
     #check if file './train/anns.csv' already exists
 
     #if not, then create this csv now
     if not os.path.exists(config.temp_annotation_file):
-        #pull caption for each image into a list
-        captions = [coco.anns[ann_id]['caption'] for ann_id in coco.anns]
+        image_ids = ids
+        print("{} training images were found locally, in {}".format(len(image_ids), path))
 
-        #pull id for each image (these are the 6-digit IDs) into a list
-        image_ids = [coco.anns[ann_id]['image_id'] for ann_id in coco.anns]
-        print(image_ids)
+        #pull id for each image into a list
+        #image_ids = [coco.annId_to_ann[ann_id]['image_id'] for ann_id in coco.annId_to_ann]
+        #print("found following image ids locally:", ids)
 
-        #CHANGED BY NWEINER 12/14/22: instead of using image filenames, use the COCO link for the image (to avoid storing tons of images locally)
-        #image_files = [os.path.join(config.train_image_dir, coco.imgs[image_id]['file_name']) for image_id in image_ids]
-        image_links = [coco.imgs[image_id]['coco_url'] for image_id in image_ids] #recall that coco.imgs maps image id to a dict containing image data
+        #extract captions for the images that are stored locally
+        captions = [coco.imgId_to_ann[image_id][0]['caption'] for image_id in image_ids]
 
-        #creata a pandas dataframe with three cols: image id, the image's COCO url, and the image's caption
-        annotations = pd.DataFrame({'image_id': image_ids, 'image_link': image_links, 'caption': captions}) #CHANGED BY NWEINER on 12/14/22: change image_file to image_link
+        #CHANGED BY NWEINER 12/14/22: 
+        if LOCAL:
+            image_files = [os.path.join(config.train_image_dir, coco.imgId_to_img[image_id]['file_name']) for image_id in image_ids]
+
+            #create pandas dataframe with three cols: image id, the image's local filename, and the image's caption
+            annotations = pd.DataFrame({'image_id': image_ids, 'image_file': image_files, 'caption': captions}) 
+
+        #instead of using image filenames, use the COCO link for the image (to avoid storing tons of images locally)
+        else:
+            image_links = [coco.imgId_to_img[image_id]['coco_url'] for image_id in image_ids] #recall that coco.imgs maps image id to a dict containing image data
+
+            #creata a pandas dataframe with three cols: image id, the image's COCO url, and the image's caption
+            annotations = pd.DataFrame({'image_id': image_ids, 'image_link': image_links, 'caption': captions}) #CHANGED BY NWEINER on 12/14/22: change image_file to image_link
+
+        #print("dataframe created is", annotations)
+        
 
         #save the annotations in the file './train/anns.csv'
         annotations.to_csv(config.temp_annotation_file)
@@ -151,7 +187,10 @@ def prepare_train_data(config):
         captions = annotations['caption'].values
         image_ids = annotations['image_id'].values
 
-        image_links = annotations['image_link'].values
+        if LOCAL:
+            image_files = annotations['image_file'].values
+        else:
+            image_links = annotations['image_link'].values
 
 
     #check if the training file  ./train/data.npy' already exists
@@ -206,7 +245,10 @@ def prepare_train_data(config):
     print("Building the DataSet object using the images and digit-ified captions...")
 
     #instantiate a DataSet object with these image IDs, image links, the appropriate batch size, and the word indices arrays (captions)
-    dataset = DataSet(image_ids, image_links, config.batch_size, word_idxs, masks, True, True)
+    if LOCAL:
+        dataset = DataSet(image_ids, image_files, config.batch_size, word_idxs, masks, True, True)
+    else:
+        dataset = DataSet(image_ids, image_links, config.batch_size, word_idxs, masks, True, True)
     print("Dataset built.")
 
 

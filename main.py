@@ -84,8 +84,7 @@ def main(argv):
 
             #run train() method in base_model
             model.train(sess, data)
-
-
+            
         
         elif FLAGS.phase == 'eval':
             #if user specified eval, then do evaluation phase

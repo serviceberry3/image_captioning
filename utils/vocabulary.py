@@ -10,12 +10,16 @@ from nltk.tokenize import word_tokenize
 #In this case, it's the unique set of words seen in the set of image captions
 class Vocabulary(object):
     def __init__(self, size, save_file=None):
+        #list of all words in the vocabulary
         self.words = []
+
         self.word2idx = {}
+
+        #list of ints giving frequency of each word in vocabulary
         self.word_frequencies = []
 
+        #size of the vocabulary
         self.size = 0
-
 
         #if loading from existing vocab CSV file, load it now
         if save_file is not None:
@@ -23,7 +27,7 @@ class Vocabulary(object):
 
 
     def build(self, sentences):
-        """ Build the vocabulary from the list of captions passed, and compute the frequency of each word. """
+        """ Build the vocabulary from the list of (all) captions passed, and compute the frequency of each word. """
         #print("in build() in vocabulary.py")
 
         #this var is a dict mapping words in the captions to their frequencies
@@ -45,17 +49,21 @@ class Vocabulary(object):
         #make sure size has been set appropriately
         assert self.size - 1 <= len(word_counts.keys())
 
+        #insert start indicator strings at beginning of words and word2idx arrays
         self.words.append('<start>')
         self.word2idx['<start>'] = 0
         self.word_frequencies.append(1.0)
 
+
         word_counts = sorted(list(word_counts.items()), key=lambda x: x[1], reverse=True)
+
 
         for idx in range(self.size - 1):
             word, frequency = word_counts[idx]
             self.words.append(word)
             self.word2idx[word] = idx + 1
             self.word_frequencies.append(frequency)
+
 
         self.word_frequencies = np.array(self.word_frequencies)
         self.word_frequencies /= np.sum(self.word_frequencies)

@@ -196,6 +196,8 @@ class CaptionGenerator(BaseModel):
         outputs = tf.nn.relu(outputs)
         return outputs
 
+
+
     def build_rnn(self):
         """ Build the RNN. """
         print("Building the RNN...")

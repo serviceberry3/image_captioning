@@ -5,3 +5,7 @@ val
 vgg16_no_fc.npy
 vocabulary.csv
 summary
+utils/ilsvrc_2012_mean.npy
+test2
+train2
+val2
