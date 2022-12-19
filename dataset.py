@@ -17,9 +17,6 @@ import pylab
 
 import matplotlib.pyplot as plt
 
-#set this to True if you want to draw from images stored locally on disk. else will use COCO API to fetch images via URL
-LOCAL = True
-
 '''
 Class that serves as a container for the dataset.
 '''
@@ -57,6 +54,7 @@ class DataSet(object):
         if self.shuffle:
             np.random.shuffle(self.idxs)
 
+    #get next batch of data
     def next_batch(self):
         """ Fetch the next batch. """
         assert self.has_next_batch()
@@ -68,7 +66,10 @@ class DataSet(object):
             start, end = self.current_idx, self.count
             current_idxs = self.idxs[start:end] + list(np.random.choice(self.count, self.fake_count))
 
+        #if local was set True in config.py, image_links will be the COCO API URLs for the images
+        #otherwise, image_links will be the local filenames of images
         image_links = self.image_links[current_idxs]
+
         image_ids = self.image_ids[current_idxs]
 
         #if we're in training, return image ids, image links, captions, and masks
@@ -81,6 +82,7 @@ class DataSet(object):
         else:
             self.current_idx += self.batch_size
             return image_links
+
 
     def has_next_batch(self):
         """ Determine whether there is a batch left. """
@@ -97,36 +99,42 @@ def prepare_train_data(config):
     print("Running prepare_train_data()...")
 
     #instantiate a COCO Python object, passing the JSON annotation file containing all the captions for all training images
-    coco = myCOCO(config.train_caption_file)
+    coco = myCOCO(config, config.train_caption_file)
 
     #pull caption for each image into a list
     #captions = [coco.anns[ann_id]['caption'] for ann_id in coco.anns]
 
-    #get the list of all files and directories
-    path = "../image_captioning/train/images"
-    files_list = os.listdir(path)
-
     #init empty list to hold all IDs of images stored locally
     ids = []
 
-    #iterate through list of filenames
-    for file in files_list:
-        #make sure this is not a JSON file
-        if (file[-3:] != 'son'):
-            #extract the annotation ID corresponding to the jpg file, and append it to the running list of found IDs
-            ids.append(int(file[20:27]))
+    if (config.local):
+        #get the list of all files and directories
+        path = "../image_captioning/train/images"
+        files_list = os.listdir(path)
 
-    coco.list_of_img_ids_were_using = ids
+
+        #iterate through list of filenames
+        for file in files_list:
+            #make sure this is not a JSON file
+            if (file[-3:] != 'son'):
+                #extract the annotation ID corresponding to the jpg file, and append it to the running list of found IDs
+                ids.append(int(file[20:27]))
+
+        coco.list_of_img_ids_were_using = ids
+    else:
+        #otherwise, the image id list should have been populated when coco was instantiated. pull that from coco now so we can use it below when creating the dataframe
+        ids = coco.list_of_img_ids_were_using
 
     #filter by caption lengths
     coco.filter_by_cap_len(config.max_caption_length)
 
-    #build vocabulary. in NLP, a vocabulary is the set of unkique words used to train a model
+    #build vocabulary. in NLP, a vocabulary is the set of unique words used to train a model
     print("Building the vocabulary...")
     vocabulary = Vocabulary(config.vocabulary_size)
 
     #if the file './vocabulary.csv' doesn't already exist, build it now and save it
     if not os.path.exists(config.vocabulary_file):
+        #build vocab using captions of all images with ids corresponding to coco.list_of_img_ids_were_using
         vocabulary.build(coco.all_captions())
         vocabulary.save(config.vocabulary_file)
 
@@ -149,7 +157,7 @@ def prepare_train_data(config):
     #if not, then create this csv now
     if not os.path.exists(config.temp_annotation_file):
         image_ids = ids
-        print("{} training images were found locally, in {}".format(len(image_ids), path))
+        #print("{} training images were found locally, in {}".format(len(image_ids), path))
 
         #pull id for each image into a list
         #image_ids = [coco.annId_to_ann[ann_id]['image_id'] for ann_id in coco.annId_to_ann]
@@ -159,7 +167,9 @@ def prepare_train_data(config):
         captions = [coco.imgId_to_ann[image_id][0]['caption'] for image_id in image_ids]
 
         #CHANGED BY NWEINER 12/14/22: 
-        if LOCAL:
+        if config.local:
+            print("{} training images were found locally, in {}".format(len(image_ids), path))
+
             image_files = [os.path.join(config.train_image_dir, coco.imgId_to_img[image_id]['file_name']) for image_id in image_ids]
 
             #create pandas dataframe with three cols: image id, the image's local filename, and the image's caption
@@ -167,6 +177,8 @@ def prepare_train_data(config):
 
         #instead of using image filenames, use the COCO link for the image (to avoid storing tons of images locally)
         else:
+            print("{} training images were found via COCO annotations".format(len(image_ids)))
+
             image_links = [coco.imgId_to_img[image_id]['coco_url'] for image_id in image_ids] #recall that coco.imgs maps image id to a dict containing image data
 
             #creata a pandas dataframe with three cols: image id, the image's COCO url, and the image's caption
@@ -187,7 +199,7 @@ def prepare_train_data(config):
         captions = annotations['caption'].values
         image_ids = annotations['image_id'].values
 
-        if LOCAL:
+        if config.local:
             image_files = annotations['image_file'].values
         else:
             image_links = annotations['image_link'].values
@@ -245,7 +257,7 @@ def prepare_train_data(config):
     print("Building the DataSet object using the images and digit-ified captions...")
 
     #instantiate a DataSet object with these image IDs, image links, the appropriate batch size, and the word indices arrays (captions)
-    if LOCAL:
+    if config.local:
         dataset = DataSet(image_ids, image_files, config.batch_size, word_idxs, masks, True, True)
     else:
         dataset = DataSet(image_ids, image_links, config.batch_size, word_idxs, masks, True, True)

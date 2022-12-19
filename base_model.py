@@ -18,6 +18,8 @@ from pycocotools.coco import COCO as theyCOCO
 from utils.coco.pycocoevalcap.eval import COCOEvalCap
 from utils.misc import ImageLoader, CaptionData, TopN
 
+LOCAL = True
+
 class BaseModel(object):
     #when constructing object instance, need to pass the config instance, and the name of the annotations JSON file to be used for collecting images and captions
     def __init__(self, config, ann_file):
@@ -34,6 +36,8 @@ class BaseModel(object):
 
         self.image_shape = [224, 224, 3]
         self.nn = NN(config)
+
+        #define global_step, a TensorFlow variable
         self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
         self.build()
 
@@ -44,6 +48,7 @@ class BaseModel(object):
         """ Train the model using the COCO train2014 data. """
         print("Training the model via train() in base_model.py...")
 
+        #get the configuration details
         config = self.config
 
         if not os.path.exists(config.summary_dir):
@@ -66,11 +71,12 @@ class BaseModel(object):
                 image_ids, image_links, sentences, masks = batch
 
                 #load all images for this batch via COCO api and store them in a list
-                images = self.image_loader.load_images(image_links, coco_caps)
+                #pass local as var to indicate whether to load image from COCO api url, or from local folder
+                images = self.image_loader.load_images(image_links, coco_caps, config.local)
                 
                 feed_dict = {self.images: images, self.sentences: sentences, self.masks: masks}
 
-
+                #run training session on this data batch
                 _, summary, global_step = sess.run([self.opt_op, self.summary, self.global_step], feed_dict=feed_dict)
 
 
@@ -80,6 +86,7 @@ class BaseModel(object):
                 train_writer.add_summary(summary, global_step)
             train_data.reset()
 
+        #save the model
         self.save()
 
         train_writer.close()
@@ -178,7 +185,11 @@ class BaseModel(object):
                                 'prob':scores})
                                 
         results.to_csv(config.test_result_file)
+
+
         print("Testing complete.")
+
+
 
     def beam_search(self, sess, image_files, vocabulary):
         """Use beam search to generate the captions for a batch of images."""
@@ -260,20 +271,33 @@ class BaseModel(object):
 
         return results
 
+
     def save(self):
         """ Save the model. """
         config = self.config
+
+        #save the model parameters
         data = {v.name: v.eval() for v in tf.global_variables()}
         save_path = os.path.join(config.save_dir, str(self.global_step.eval()))
 
-        print((" Saving the model to %s..." % (save_path+".npy")))
+        print((" Saving the model to %s..." % (save_path + ".npy")))
         np.save(save_path, data)
-        info_file = open(os.path.join(config.save_dir, "config.pickle"), "wb")
+
+        pickle_filename = os.path.join(config.save_dir, "config.pickle")
+
+        #save the config info
+        print("Saving the config info into %s..." % pickle_filename)
+        info_file = open(pickle_filename, "wb")
         config_ = copy.copy(config)
         config_.global_step = self.global_step.eval()
         pickle.dump(config_, info_file)
+
+
         info_file.close()
+
         print("Model saved.")
+
+
 
     def load(self, sess, model_file=None):
         """ Load the model. """
@@ -296,6 +320,8 @@ class BaseModel(object):
                 sess.run(v.assign(data_dict[v.name]))
                 count += 1
         print("%d tensors loaded." %count)
+
+
 
     def load_cnn(self, session, data_path, ignore_missing=True):
         """ Load a pretrained CNN model. """

@@ -14,6 +14,13 @@ class Config(object):
         self.num_decode_layers = 2       # 1 or 2
         self.dim_decode_layer = 1024
 
+        #if this is True, draw images from local folder (ie train/images)
+        #if it's False, use COCO API to get images via URL
+        self.local = True
+
+        #how much data to use
+        self.num_train_data = 100
+
         # about the weight initialization and regularization
         self.fc_kernel_initializer_scale = 0.08
         self.fc_kernel_regularizer_scale = 1e-4
@@ -47,7 +54,7 @@ class Config(object):
 
         # about the vocabulary
         self.vocabulary_file = './vocabulary.csv'
-        self.vocabulary_size = 0
+        self.vocabulary_size = 5000
 
         # about the training
         self.train_image_dir = './train/images/'

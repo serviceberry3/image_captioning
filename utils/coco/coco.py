@@ -69,7 +69,7 @@ NUM_DATA = 82787
 LOCAL = True
 
 class COCO:
-    def __init__(self, annotation_file=None):
+    def __init__(self, config, annotation_file=None):
         """
         Constructor of Microsoft COCO helper class for reading and visualizing annotations.
         :param annotation_file (str): location of annotation file
@@ -86,7 +86,11 @@ class COCO:
         self.cats = {}
         self.imgName_to_id = {}
 
+        #list of the image IDs we want to use
         self.list_of_img_ids_were_using = []
+
+        #save the configuration as object property
+        self.config = config
 
 
         #if a JSON file is passed that contains the image captions, load them into memory (into the #dataset variable)
@@ -103,7 +107,6 @@ class COCO:
             #save the JSON object into the "dataset" property of this COCO object
             self.dataset = dataset
 
-            #should we trim to the amt of data we want to use?
             if 'annotations' in self.dataset:
                 #print("found 'annotations' section in the JSON")
                 self.dataset['annotations'] = self.dataset['annotations']
@@ -149,20 +152,30 @@ class COCO:
         #dict that maps [either image URL or image filename] to the image ID
         imgName_to_id = {}
 
+        ctr = 0
+
 
         #if the JSON object contains "annotations" section
         if 'annotations' in self.dataset:
             #for each annotation
             for ann in self.dataset['annotations']:
-                imgId_to_ann[ann['image_id']] = []
+                this_img_id = ann['image_id']
+
+                imgId_to_ann[this_img_id] = []
 
                 #create an entry in the dict that maps image ID to the annotation dict for that image, and populate entry key with the image ID
                 #this dict maps image id to the annotation dict for that image. populate the value of each entry with the annotation
-                imgId_to_ann[ann['image_id']] += [ann]
+                imgId_to_ann[this_img_id] += [ann]
 
                 #create entry in dict that maps annotation ID to the annotation dict for that image, and populate entry key with the annotation ID
                 #this dict maps annotation id to the annotation dict for that image. populate the value of each entry with the annotation
                 annId_to_ann[ann['id']] = ann
+
+                #if we're loading images via COCO URLs, append the first num_data images to the image id list
+                if (self.config.local == False and ctr < self.config.num_train_data): 
+                    self.list_of_img_ids_were_using.append(this_img_id)
+
+                ctr += 1
 
                 '''
                 if (ann['image_id'] == 673):
@@ -187,7 +200,7 @@ class COCO:
 
                 #the #img_name_to_id var maps image coco URL or file name to image id
                 #CHANGE BY NWEINER: instead of using file_name, I'll use coco url
-                if LOCAL:
+                if self.config.local:
                     imgName_to_id[img['file_name']] = img['id']
                 else:
                     imgName_to_id[img['coco_url']] = img['id']
