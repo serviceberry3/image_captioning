@@ -20,6 +20,8 @@ class Config(object):
 
         #how much data to use
         self.num_train_data = 100
+        self.num_val_data = 100
+        self.num_test_data = 3
 
         # about the weight initialization and regularization
         self.fc_kernel_initializer_scale = 0.08

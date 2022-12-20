@@ -9,7 +9,7 @@
     5. For Tensorflow 2, change to use tf.compat.v1.flags instead of tf.app.flags, and tf.compat.v1 in general instead of tf (in many files, including model.py)  
     6. Replace tf.contrib.layers with Tf Slim  
     7. Follow instructions here, in general: https://www.tensorflow.org/guide/migrate  
-    8. Some other quirks of Python3 vs. older versions of python, like using items() instead of iteritmes() on a dict  
+    8. Some other quirks of Python3 vs. older versions of python, like using items() instead of iteritems() on a dict  
 * 12/14/22  
     9. Change the all_captions(), createIndex(), and init() functions in coco.py to optionally pull the COCO image url instead of creating the local filename for each image.  
     10. Add comments (walk through/understand code), improve variable names, and reduce lines of code in coco.py, dataset.py, main.py, and vocabulary.py.  
@@ -20,7 +20,12 @@
     14. Add a variable called "local" to config to specify to many files/functions whether images are being loaded from local folder or from URL.
 * 12/18/22  
     15. Finish implementing the local and num_train_data options in config. If you set local True, Tf will read images from local folder, extract the img IDs from the filenames, and pull the appropriate captions from the annotations JSON. If set local False, you can specify the number of training images you want to use, and then Tf will pull that number of images from the COCO API during training.  
-    
+* 12/19/22
+    16. During eval() in base_model.py, the val set from COCO is run through the network, and captions are generated. The function stores a list of dicts containing image id and the generated caption. Needed to cast these int64 image ids to regular Python int() in order to then be able to save the list of dicts into JSON file val/results.json.
+    17. Resolve byte->string conversion errors using the tokenizer in ptbtokenizer.py, for evaluate() in eval.py.
+    18. Use range() instead of deprecated xrange() for bleu_scorer.py.
+
+
   
   
 ### Introduction

@@ -69,7 +69,7 @@ NUM_DATA = 82787
 LOCAL = True
 
 class COCO:
-    def __init__(self, config, annotation_file=None):
+    def __init__(self, config, num_data, annotation_file=None):
         """
         Constructor of Microsoft COCO helper class for reading and visualizing annotations.
         :param annotation_file (str): location of annotation file
@@ -172,7 +172,7 @@ class COCO:
                 annId_to_ann[ann['id']] = ann
 
                 #if we're loading images via COCO URLs, append the first num_data images to the image id list
-                if (self.config.local == False and ctr < self.config.num_train_data): 
+                if (self.config.local == False and ctr < num_data): 
                     self.list_of_img_ids_were_using.append(this_img_id)
 
                 ctr += 1
@@ -304,25 +304,31 @@ class COCO:
         return ids
 
 
-    def getImgIds(self, imgIds=[], catIds=[]):
+    def getImgIds(self, imgIds = [], catIds = []):
         '''
         Get img ids that satisfy given filter conditions.
-        :param imgIds (int array) : get imgs for given ids
+        :param imgIds (int array) : get imgs for given idsimgToAnns
         :param catIds (int array) : get imgs with all given cats
         :return: ids (int array)  : integer array of img ids
         '''
         imgIds = imgIds if type(imgIds) == list else [imgIds]
         catIds = catIds if type(catIds) == list else [catIds]
 
+        #if no category or img id filters are passed, just return list of IDs of images we're using
         if len(imgIds) == len(catIds) == 0:
-            ids = self.imgs.keys()
+            #ids = self.imgs.keys()
+            ids = self.list_of_img_ids_were_using
+
         else:
             ids = set(imgIds)
+
             for i, catId in enumerate(catIds):
                 if i == 0 and len(ids) == 0:
                     ids = set(self.catToImgs[catId])
                 else:
                     ids &= set(self.catToImgs[catId])
+
+
         return list(ids)
 
 
@@ -365,33 +371,49 @@ class COCO:
             return [self.imgs[ids]]
 
 
-    def loadRes(self, resFile):
+    def loadRes(self, config):
         """
-        Load result file and return a result api object.
+        Load result file and return a result api object (a COCO object).
         :param   resFile (str)     : file name of result file
         :return: res (obj)         : result api object
         """
-        res = COCO()
+        res = COCO(config, config.num_val_data)
+
+        resFile = config.eval_result_file
+
         res.dataset['images'] = [img for img in self.dataset['images']]
         # res.dataset['info'] = copy.deepcopy(self.dataset['info'])
         # res.dataset['licenses'] = copy.deepcopy(self.dataset['licenses'])
 
         print('Loading and preparing results...     ')
         tic = time.time()
-        anns    = json.load(open(resFile))
+
+        #resfile by default is ie val/results.json for evaluation
+        #load in the json data that was saved during eval() 
+        anns = json.load(open(resFile))
+
         assert type(anns) == list, 'results in not an array of objects'
+
+        #extract image IDs from the json
         annsImgIds = [ann['image_id'] for ann in anns]
-        assert set(annsImgIds) == (set(annsImgIds) & set(self.getImgIds())), \
-               'Results do not correspond to current coco set'
+
+        #print("annsImgIds is", annsImgIds)
+        #print("self.getImgIds is", self.getImgIds())
+        assert set(annsImgIds) == (set(annsImgIds) & set(self.getImgIds())), 'Results do not correspond to current coco set'
+
         assert 'caption' in anns[0]
+
         imgIds = set([img['id'] for img in res.dataset['images']]) & set([ann['image_id'] for ann in anns])
         res.dataset['images'] = [img for img in res.dataset['images'] if img['id'] in imgIds]
+
         for id, ann in enumerate(anns):
-            ann['id'] = id+1
+            ann['id'] = id + 1
+
         print('DONE (t=%0.2fs)'%(time.time()- tic))
 
         res.dataset['annotations'] = anns
         res.createIndex()
+
         return res
 
 

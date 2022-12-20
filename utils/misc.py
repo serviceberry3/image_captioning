@@ -19,7 +19,7 @@ class ImageLoader(object):
 
     #function that loads images from a COCO link and preprocesses it
     #CHANGED BY NWEINER on 12/14/22: load imgs from COCO api instead of disk
-    def load_image(self, image_link, coco_instance, local):
+    def load_image(self, image_link, local):
         """ Load and preprocess an image. """
 
         #print("loading img {}".format(image_link))
@@ -52,13 +52,13 @@ class ImageLoader(object):
 
 
     #CHANGED BY NWEINER on 12/14/22: load via image links, not files
-    def load_images(self, image_links, coco_instance, local):
+    def load_images(self, image_links, local):
         """ Load and preprocess a list of images. """
         images = []
 
         #CHANGED BY NWEINER on 12/14/22: load using COCO API
         for image_link in image_links:
-            images.append(self.load_image(image_link, coco_instance, local))
+            images.append(self.load_image(image_link, local))
 
         #turn images into np array of 32-bit floats
         images = np.array(images, np.float32)

@@ -23,29 +23,47 @@ class COCOEvalCap:
         self.imgToEval = {}
         self.coco = coco
         self.cocoRes = cocoRes
+
         self.params = {'image_id': coco.getImgIds()}
+
 
     def evaluate(self):
         imgIds = self.params['image_id']
         # imgIds = self.coco.getImgIds()
+
+        #empty dicts to hold ground truth captions and network-result captions for each image id that was run as val data
         gts = {}
         res = {}
+
         for imgId in imgIds:
-            gts[imgId] = self.coco.imgToAnns[imgId]
-            res[imgId] = self.cocoRes.imgToAnns[imgId]
+            #CHANGED BY NWEINER 12/19 -- use new coco dict names
+            #gts[imgId] = self.coco.imgToAnns[imgId]
+            gts[imgId] = self.coco.imgId_to_ann[imgId]
+
+            #res[imgId] = self.cocoRes.imgToAnns[imgId]
+            res[imgId] = self.cocoRes.imgId_to_ann[imgId]
+
+
+        #print("gts is", gts)
+        #print("res is", res)
 
         # =================================================
         # Set up scorers
         # =================================================
-        print('tokenization...')
+        print('Tokenization of the ground truth and network-run dicts...')
         tokenizer = PTBTokenizer()
-        gts  = tokenizer.tokenize(gts)
+
+        #tokenize the two dicts
+        gts = tokenizer.tokenize(gts)
+
         res = tokenizer.tokenize(res)
 
         # =================================================
         # Set up scorers
         # =================================================
         print('setting up scorers...')
+
+        #different scoring metrics
         scorers = [
             (Bleu(4), ["Bleu_1", "Bleu_2", "Bleu_3", "Bleu_4"]),
             (Meteor(),"METEOR"),
@@ -54,11 +72,14 @@ class COCOEvalCap:
         ]
 
         # =================================================
-        # Compute scores
+        # Compute scores using each of 4 scoring methods
         # =================================================
         for scorer, method in scorers:
             print('computing %s score...'%(scorer.method()))
+
+            #compare generated caption to ground truth
             score, scores = scorer.compute_score(gts, res)
+
             if type(method) == list:
                 for sc, scs, m in zip(score, scores, method):
                     self.setEval(sc, m)
@@ -68,10 +89,16 @@ class COCOEvalCap:
                 self.setEval(score, method)
                 self.setImgToEvalImgs(scores, gts.keys(), method)
                 print("%s: %0.3f"%(method, score))
+
+                
         self.setEvalImgs()
+
+
 
     def setEval(self, score, method):
         self.eval[method] = score
+
+
 
     def setImgToEvalImgs(self, scores, imgIds, method):
         for imgId, score in zip(imgIds, scores):
@@ -79,6 +106,7 @@ class COCOEvalCap:
                 self.imgToEval[imgId] = {}
                 self.imgToEval[imgId]["image_id"] = imgId
             self.imgToEval[imgId][method] = score
+
 
     def setEvalImgs(self):
         self.evalImgs = [eval for imgId, eval in self.imgToEval.items()]

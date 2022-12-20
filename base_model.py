@@ -72,7 +72,7 @@ class BaseModel(object):
 
                 #load all images for this batch via COCO api and store them in a list
                 #pass local as var to indicate whether to load image from COCO api url, or from local folder
-                images = self.image_loader.load_images(image_links, coco_caps, config.local)
+                images = self.image_loader.load_images(image_links, config.local)
                 
                 feed_dict = {self.images: images, self.sentences: sentences, self.masks: masks}
 
@@ -94,30 +94,45 @@ class BaseModel(object):
         print("Training complete.")
 
 
+    #a portion of the COCO data is used as evaluation data after the network is trained (it's taken from COCO "val" dataset)
     def eval(self, sess, eval_gt_coco, eval_data, vocabulary):
         """ Evaluate the model using the COCO val2014 data. """
         print("Evaluating the model ...")
+
         config = self.config
 
+        #results will be a list of dicts that contain the ID of the image being passe thru the trained network, and the corresponding caption generated
         results = []
+
+
         if not os.path.exists(config.eval_result_dir):
             os.mkdir(config.eval_result_dir)
 
         # Generate the captions for the images
         idx = 0
 
+        #for num of batches
         for k in tqdm(list(range(eval_data.num_batches)), desc='batch'):
+            #get next batch of eval data
             batch = eval_data.next_batch()
+
             caption_data = self.beam_search(sess, batch, vocabulary)
 
             fake_cnt = 0 if k < eval_data.num_batches - 1 else eval_data.fake_count
 
-
-            for l in range(eval_data.batch_size-fake_cnt):
+            for l in range(eval_data.batch_size - fake_cnt):
+                #get caption data that was generated for this image, as indices of words
                 word_idxs = caption_data[l][0].sentence
+
+                #get score
                 score = caption_data[l][0].score
                 caption = vocabulary.get_sentence(word_idxs)
-                results.append({'image_id': eval_data.image_ids[idx], 'caption': caption})
+
+                #append to results: results will be a list of dicts
+                results.append({'image_id': int(eval_data.image_ids[idx]), 'caption': caption})
+
+                #print("appending img id {} and caption {} to results".format(eval_data.image_ids[idx], caption))
+
                 idx += 1
 
                 # Save the result in an image file, if requested
@@ -129,19 +144,36 @@ class BaseModel(object):
                     plt.imshow(img)
                     plt.axis('off')
                     plt.title(caption)
-                    plt.savefig(os.path.join(config.eval_result_dir,
-                                             image_name+'_result.jpg'))
+                    plt.savefig(os.path.join(config.eval_result_dir, image_name + '_result.jpg'))
 
-        fp = open(config.eval_result_file, 'wb')
+
+        fp = open(config.eval_result_file, 'w')
+        #fp = open(config.eval_result_file, "w", encoding="utf8")
+
         json.dump(results, fp)
+
+        #print(results)
+
+        # Serializing json
+        #json_object = json.dumps(results)
+        
+        #fp.write(json_object)
+
         fp.close()
 
-        # Evaluate these captions
-        eval_result_coco = eval_gt_coco.loadRes(config.eval_result_file)
+        #evaluate these generated captions compared to the ground truths, using the scoring techniques (BLEU, etc.) in eval.py
+        eval_result_coco = eval_gt_coco.loadRes(config) #the return here is a COCO object
+
+        #instantiate a COCOEvalCap obj to do scoring
         scorer = COCOEvalCap(eval_gt_coco, eval_result_coco)
+
+        #run scoring
         scorer.evaluate()
+
         print("Evaluation complete.")
 
+
+    #network can be tested on our own JPG images in the test/ folder
     def test(self, sess, test_data, vocabulary):
         """ Test the model using any given images. """
         print("Testing the model ...")
@@ -153,13 +185,13 @@ class BaseModel(object):
         captions = []
         scores = []
 
+
         # Generate the captions for the images
         for k in tqdm(list(range(test_data.num_batches)), desc='path'):
             batch = test_data.next_batch()
             caption_data = self.beam_search(sess, batch, vocabulary)
 
-            fake_cnt = 0 if k<test_data.num_batches-1 \
-                         else test_data.fake_count
+            fake_cnt = 0 if k < test_data.num_batches-1 else test_data.fake_count
 
 
             for l in range(test_data.batch_size-fake_cnt):
@@ -179,10 +211,9 @@ class BaseModel(object):
                 plt.title(caption)
                 plt.savefig(os.path.join(config.test_result_dir, image_name+'_result.jpg'))
 
+
         # Save the captions to a file
-        results = pd.DataFrame({'image_files':test_data.image_files,
-                                'caption':captions,
-                                'prob':scores})
+        results = pd.DataFrame({'image_files':test_data.image_files, 'caption':captions, 'prob':scores})
                                 
         results.to_csv(config.test_result_file)
 
@@ -195,13 +226,16 @@ class BaseModel(object):
         """Use beam search to generate the captions for a batch of images."""
         # Feed in the images to get the contexts and the initial LSTM states
         config = self.config
-        images = self.image_loader.load_images(image_files)
+
+        images = self.image_loader.load_images(image_files, config.local)
+
         contexts, initial_memory, initial_output = sess.run(
             [self.conv_feats, self.initial_memory, self.initial_output],
             feed_dict = {self.images: images})
 
         partial_caption_data = []
         complete_caption_data = []
+
         for k in range(config.batch_size):
             initial_beam = CaptionData(sentence = [],
                                        memory = initial_memory[k],

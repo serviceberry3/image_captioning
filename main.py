@@ -56,6 +56,7 @@ def main(argv):
 
     tf.disable_eager_execution()
 
+
     #create a TensorFlow session
     with tf.Session() as sess:
         if FLAGS.phase == 'train':
@@ -86,17 +87,21 @@ def main(argv):
             model.train(sess, data)
             
         
+        #if user specified to do eval
         elif FLAGS.phase == 'eval':
             #if user specified eval, then do evaluation phase
             print("User specified eval, so doing evaluation...")
 
             coco, data, vocabulary = prepare_eval_data(config)
-            model = CaptionGenerator(config)
+
+            model = CaptionGenerator(config, "./val/captions_val2014.json")
             model.load(sess, FLAGS.model_file)
+
             tf.get_default_graph().finalize()
             model.eval(sess, coco, data, vocabulary)
 
 
+        #if user specified to test network
         elif FLAGS.phase == 'test':
             #otherwise, do testing phase
             print("User specified test, so testing trained network...")

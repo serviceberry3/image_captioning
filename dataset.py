@@ -59,6 +59,7 @@ class DataSet(object):
         """ Fetch the next batch. """
         assert self.has_next_batch()
 
+
         if self.has_full_next_batch():
             start, end = self.current_idx, self.current_idx + self.batch_size
             current_idxs = self.idxs[start:end]
@@ -99,7 +100,7 @@ def prepare_train_data(config):
     print("Running prepare_train_data()...")
 
     #instantiate a COCO Python object, passing the JSON annotation file containing all the captions for all training images
-    coco = myCOCO(config, config.train_caption_file)
+    coco = myCOCO(config, config.num_train_data, config.train_caption_file)
 
     #pull caption for each image into a list
     #captions = [coco.anns[ann_id]['caption'] for ann_id in coco.anns]
@@ -107,18 +108,22 @@ def prepare_train_data(config):
     #init empty list to hold all IDs of images stored locally
     ids = []
 
+    ctr = 0
+
     if (config.local):
         #get the list of all files and directories
         path = "../image_captioning/train/images"
         files_list = os.listdir(path)
 
 
-        #iterate through list of filenames
+        #iterate through list of filenames and fetch image IDs for num_train_data images
         for file in files_list:
             #make sure this is not a JSON file
-            if (file[-3:] != 'son'):
+            if (file[-3:] != 'son' and ctr < config.num_train_data):
                 #extract the annotation ID corresponding to the jpg file, and append it to the running list of found IDs
                 ids.append(int(file[20:27]))
+
+                ctr += 1
 
         coco.list_of_img_ids_were_using = ids
     else:
@@ -271,11 +276,59 @@ def prepare_train_data(config):
 #prepare evaluation data
 def prepare_eval_data(config):
     """ Prepare the data for evaluating the model. """
-    coco = myCOCO(config.eval_caption_file)
-    image_ids = list(coco.imgs.keys())
-    image_files = [os.path.join(config.eval_image_dir, coco.imgs[image_id]['file_name']) for image_id in image_ids]
+    coco = myCOCO(config, config.num_val_data, config.eval_caption_file)
+
+    #get list of image IDs
+    #image_ids = list(coco.imgs.keys())
+    #init empty list to hold all IDs of images stored locally
+    ids = []
+
+    ctr = 0
+
+    if (config.local):
+        #get the list of all files and directories
+        path = "../image_captioning/val/images"
+        files_list = os.listdir(path)
+
+
+        #iterate through list of filenames and fetch image IDs for num_train_data images
+        for file in files_list:
+            #make sure this is not a JSON file
+            if (file[-3:] != 'son' and ctr < config.num_val_data):
+                #extract the annotation ID corresponding to the jpg file, and append it to the running list of found IDs
+                ids.append(int(file[-10:-4]))
+
+                if ctr == 0:
+                    print("id is", int(file[-10:-5]))
+
+                ctr += 1
+
+        coco.list_of_img_ids_were_using = ids
+    else:
+        #otherwise, the image id list should have been populated when coco was instantiated. pull that from coco now so we can use it below when creating the dataframe
+        ids = coco.list_of_img_ids_were_using
+
+
+    image_ids = ids
+
+
+    #CHANGED BY NWEINER 12/18/22: 
+    if config.local:
+        print("{} val images were found locally, in {}".format(len(image_ids), path))
+
+        image_files = [os.path.join(config.eval_image_dir, coco.imgId_to_img[image_id]['file_name']) for image_id in image_ids]
+
+
+    #instead of using image filenames, use the COCO link for the image (to avoid storing tons of images locally)
+    else:
+        print("{} training images were found via COCO annotations".format(len(image_ids)))
+
+        image_links = [coco.imgId_to_img[image_id]['coco_url'] for image_id in image_ids] #recall that coco.imgs maps image id to a dict containing image data
+
 
     print("Building the vocabulary...")
+
+
     if os.path.exists(config.vocabulary_file):
         vocabulary = Vocabulary(config.vocabulary_size, config.vocabulary_file)
     else:
@@ -284,9 +337,21 @@ def prepare_eval_data(config):
     print("Vocabulary built.")
     print("Number of words = %d" %(vocabulary.size))
 
-    print("Building the dataset...")
-    dataset = DataSet(image_ids, image_files, config.batch_size)
+
+
+    print("Building the DataSet object using the images and digit-ified captions...")
+
+    #instantiate a DataSet object with these image IDs, image links, the appropriate batch size, and the word indices arrays (captions)
+    if config.local:
+        dataset = DataSet(image_ids, image_files, config.batch_size)
+    else:
+        dataset = DataSet(image_ids, image_links, config.batch_size)
     print("Dataset built.")
+
+
+    #dataset = DataSet(image_ids, image_files, config.batch_size)
+    #print("Dataset built.")
+
     return coco, dataset, vocabulary
 
 
@@ -298,17 +363,25 @@ def prepare_test_data(config):
     image_files = [os.path.join(config.test_image_dir, f) for f in files if f.lower().endswith('.jpg') or f.lower().endswith('.jpeg')]
     image_ids = list(range(len(image_files)))
 
+
     print("Building the vocabulary...")
     if os.path.exists(config.vocabulary_file):
         vocabulary = Vocabulary(config.vocabulary_size, config.vocabulary_file)
     else:
         vocabulary = build_vocabulary(config)
+
+
     print("Vocabulary built.")
     print("Number of words = %d" %(vocabulary.size))
 
     print("Building the dataset...")
+
+
     dataset = DataSet(image_ids, image_files, config.batch_size)
+
     print("Dataset built.")
+
+
     return dataset, vocabulary
 
 
