@@ -33,7 +33,7 @@ class Vocabulary(object):
         #this var is a dict mapping words in the captions to their frequencies
         word_counts = {}
 
-        #iterate over all 
+        #iterate over all captions
         for sentence in tqdm(sentences):
             #get list of words that occur in the sentence
             for w in word_tokenize(sentence.lower()):
@@ -54,12 +54,15 @@ class Vocabulary(object):
         self.word2idx['<start>'] = 0
         self.word_frequencies.append(1.0)
 
-
+        #sort the word counts (ints describing freq of each word) in descending order
         word_counts = sorted(list(word_counts.items()), key=lambda x: x[1], reverse=True)
 
-
+        #iterate over entire vocab
         for idx in range(self.size - 1):
+            #get the word and its frequency
             word, frequency = word_counts[idx]
+
+            #add this word to the vocab
             self.words.append(word)
             self.word2idx[word] = idx + 1
             self.word_frequencies.append(frequency)

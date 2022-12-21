@@ -4,7 +4,7 @@ class Config(object):
     def __init__(self):
         # about the model architecture
         self.cnn = 'vgg16'               # 'vgg16' or 'resnet50'
-        self.max_caption_length = 20
+        self.max_caption_length = 25 #WAS 20
         self.dim_embedding = 512
         self.num_lstm_units = 512
         self.num_initalize_layers = 2    # 1 or 2
@@ -14,12 +14,16 @@ class Config(object):
         self.num_decode_layers = 2       # 1 or 2
         self.dim_decode_layer = 1024
 
+        #dataset can be 'coco' or 'sbu'
+
+        self.dataset = 'sbu'
+
         #if this is True, draw images from local folder (ie train/images)
         #if it's False, use COCO API to get images via URL
-        self.local = True
+        self.local = True #only optionally set local False if using COCO
 
         #how much data to use
-        self.num_train_data = 100
+        self.num_train_data = 3000
         self.num_val_data = 100
         self.num_test_data = 3
 
@@ -56,11 +60,13 @@ class Config(object):
 
         # about the vocabulary
         self.vocabulary_file = './vocabulary.csv'
-        self.vocabulary_size = 5000
+        self.vocabulary_size = 10000
 
         # about the training
-        self.train_image_dir = './train/images/'
-        self.train_caption_file = './train/captions_train2014.json'
+        self.coco_train_image_dir = './train/images/coco'
+        self.sbu_train_image_dir = './train/images/sbu'
+        self.coco_train_caption_file = './train/captions_train2014.json'
+        self.sbu_train_caption_file = './train/sbu-captions-all.json'
         self.temp_annotation_file = './train/anns.csv'
         self.temp_data_file = './train/data.npy' #temporary data file
 

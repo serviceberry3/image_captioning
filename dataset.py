@@ -30,8 +30,10 @@ class DataSet(object):
                  is_train=False,
                  shuffle=False):
 
-        
+        #image IDs
         self.image_ids = np.array(image_ids)
+
+        #if config.local is True, image_links will be filenames. otherwise will be COCO urls
         self.image_links = np.array(image_links)
         self.word_idxs = np.array(word_idxs)
         self.masks = np.array(masks)
@@ -99,8 +101,11 @@ def prepare_train_data(config):
     """ Prepare the data for training the model. """
     print("Running prepare_train_data()...")
 
-    #instantiate a COCO Python object, passing the JSON annotation file containing all the captions for all training images
-    coco = myCOCO(config, config.num_train_data, config.train_caption_file)
+    if (config.dataset == 'sbu'):
+        #instantiate a COCO Python object, passing the JSON annotation file containing all the captions for all training images
+        coco = myCOCO(config, config.num_train_data, config.sbu_train_caption_file)
+    else:
+        coco = myCOCO(config, config.num_train_data, config.coco_train_caption_file)
 
     #pull caption for each image into a list
     #captions = [coco.anns[ann_id]['caption'] for ann_id in coco.anns]
@@ -110,9 +115,10 @@ def prepare_train_data(config):
 
     ctr = 0
 
+    #local should always be True if using SBU data
     if (config.local):
         #get the list of all files and directories
-        path = "../image_captioning/train/images"
+        path = "../image_captioning/train/images/coco" if config.dataset == 'coco' else "../image_captioning/train/images/sbu"
         files_list = os.listdir(path)
 
 
@@ -120,11 +126,17 @@ def prepare_train_data(config):
         for file in files_list:
             #make sure this is not a JSON file
             if (file[-3:] != 'son' and ctr < config.num_train_data):
-                #extract the annotation ID corresponding to the jpg file, and append it to the running list of found IDs
-                ids.append(int(file[20:27]))
+                #how to extract ID depends on whether we're using SBU or COCO
+
+                if config.dataset == 'coco':
+                    #extract the annotation ID corresponding to the jpg file, and append it to the running list of found IDs
+                    ids.append(int(file[20:27]))
+                elif config.dataset == 'sbu':
+                    ids.append(file[0:10])
 
                 ctr += 1
 
+        #save list of img ids that we're actually using in the coco object instance
         coco.list_of_img_ids_were_using = ids
     else:
         #otherwise, the image id list should have been populated when coco was instantiated. pull that from coco now so we can use it below when creating the dataframe
@@ -136,6 +148,7 @@ def prepare_train_data(config):
     #build vocabulary. in NLP, a vocabulary is the set of unique words used to train a model
     print("Building the vocabulary...")
     vocabulary = Vocabulary(config.vocabulary_size)
+
 
     #if the file './vocabulary.csv' doesn't already exist, build it now and save it
     if not os.path.exists(config.vocabulary_file):
@@ -150,6 +163,7 @@ def prepare_train_data(config):
     print("Vocabulary has been built or loaded from ./vocabulary.csv")
     print("Number of words = %d" %(vocabulary.size))
 
+
     #filter captions by words
     #set is like a Python list but can have mixed datatypes
     coco.filter_by_words(set(vocabulary.words))
@@ -161,7 +175,7 @@ def prepare_train_data(config):
 
     #if not, then create this csv now
     if not os.path.exists(config.temp_annotation_file):
-        image_ids = ids
+        image_ids = coco.list_of_img_ids_were_using
         #print("{} training images were found locally, in {}".format(len(image_ids), path))
 
         #pull id for each image into a list
@@ -169,13 +183,20 @@ def prepare_train_data(config):
         #print("found following image ids locally:", ids)
 
         #extract captions for the images that are stored locally
-        captions = [coco.imgId_to_ann[image_id][0]['caption'] for image_id in image_ids]
+        if config.dataset == 'coco':
+            captions = [coco.imgId_to_ann[image_id][0]['caption'] for image_id in image_ids]
+        else:
+            captions = [coco.imgId_to_cap[image_id] for image_id in image_ids]
 
         #CHANGED BY NWEINER 12/14/22: 
         if config.local:
             print("{} training images were found locally, in {}".format(len(image_ids), path))
 
-            image_files = [os.path.join(config.train_image_dir, coco.imgId_to_img[image_id]['file_name']) for image_id in image_ids]
+            if config.dataset == 'coco':
+                image_files = [os.path.join(config.coco_train_image_dir, coco.imgId_to_img[image_id]['file_name']) for image_id in image_ids]
+            elif config.dataset == 'sbu':
+                image_files = [os.path.join(config.sbu_train_image_dir, str(image_id)+'.jpg') for image_id in image_ids]
+
 
             #create pandas dataframe with three cols: image id, the image's local filename, and the image's caption
             annotations = pd.DataFrame({'image_id': image_ids, 'image_file': image_files, 'caption': captions}) 
@@ -358,9 +379,14 @@ def prepare_eval_data(config):
 
 #prepare the test data
 def prepare_test_data(config):
-    """ Prepare the data for testing the model. """
+    """ Prepare the data for testing the model.
+     """
+
+    #extract filenames of the test images
     files = os.listdir(config.test_image_dir)
     image_files = [os.path.join(config.test_image_dir, f) for f in files if f.lower().endswith('.jpg') or f.lower().endswith('.jpeg')]
+
+    #get ids of images in test/ folder
     image_ids = list(range(len(image_files)))
 
 
@@ -376,7 +402,7 @@ def prepare_test_data(config):
 
     print("Building the dataset...")
 
-
+    #build the dataset using local image files
     dataset = DataSet(image_ids, image_files, config.batch_size)
 
     print("Dataset built.")

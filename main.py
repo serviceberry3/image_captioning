@@ -104,12 +104,14 @@ def main(argv):
         #if user specified to test network
         elif FLAGS.phase == 'test':
             #otherwise, do testing phase
-            print("User specified test, so testing trained network...")
+            print("User specified test, so testing trained network on our own images from test/ folder...")
 
             data, vocabulary = prepare_test_data(config)
-            model = CaptionGenerator(config)
+            model = CaptionGenerator(config, None)
+
             model.load(sess, FLAGS.model_file)
             tf.get_default_graph().finalize()
+
             model.test(sess, data, vocabulary)
 
         else:

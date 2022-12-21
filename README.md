@@ -18,12 +18,13 @@
     12. Add a clean.sh script to remove large temporary files that are created at runtime (i.e. vocabulary csv file, model checkpoints, the csv file containing the dataframe of all img IDs and their captions).  
     13. Change image loading code in misc.py to load images using skimage io function if imgs are URLs, otherwise to use cv2 imread() with local filename.
     14. Add a variable called "local" to config to specify to many files/functions whether images are being loaded from local folder or from URL.
+    15. Change BaseModel constructor to take annotations JSON filename as an arg.
 * 12/18/22  
-    15. Finish implementing the local and num_train_data options in config. If you set local True, Tf will read images from local folder, extract the img IDs from the filenames, and pull the appropriate captions from the annotations JSON. If set local False, you can specify the number of training images you want to use, and then Tf will pull that number of images from the COCO API during training.  
+    16. Finish implementing the local and num_train_data options in config. If you set local True, Tf will read images from local folder, extract the img IDs from the filenames, and pull the appropriate captions from the annotations JSON. If set local False, you can specify the number of training images you want to use, and then Tf will pull that number of images from the COCO API during training.  
 * 12/19/22
-    16. During eval() in base_model.py, the val set from COCO is run through the network, and captions are generated. The function stores a list of dicts containing image id and the generated caption. Needed to cast these int64 image ids to regular Python int() in order to then be able to save the list of dicts into JSON file val/results.json.
-    17. Resolve byte->string conversion errors using the tokenizer in ptbtokenizer.py, for evaluate() in eval.py.
-    18. Use range() instead of deprecated xrange() for bleu_scorer.py.
+    17. During eval() in base_model.py, the val set from COCO is run through the network, and captions are generated. The function stores a list of dicts containing image id and the generated caption. Needed to cast these int64 image ids to regular Python int() in order to then be able to save the list of dicts into JSON file val/results.json.
+    18. Resolve byte->string conversion errors using the tokenizer in ptbtokenizer.py, for evaluate() in eval.py.
+    19. Use range() instead of deprecated xrange() for bleu_scorer.py.
 
 
   

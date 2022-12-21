@@ -58,7 +58,7 @@ class BaseModel(object):
 
         #ADDED BY NWEINER 12/14/22
         #instantiate an instance of COCO
-        coco_caps = myCOCO(self.ann_file)
+        coco_caps = myCOCO(self.ann_file, config.num_train_data)
 
         #iterate over all training epochs
         for _ in tqdm(list(range(config.num_epochs)), desc='epoch'):
@@ -176,7 +176,7 @@ class BaseModel(object):
     #network can be tested on our own JPG images in the test/ folder
     def test(self, sess, test_data, vocabulary):
         """ Test the model using any given images. """
-        print("Testing the model ...")
+        print("Testing the model (test fxn in base_model.py)...")
         config = self.config
 
         if not os.path.exists(config.test_result_dir):
@@ -189,6 +189,7 @@ class BaseModel(object):
         # Generate the captions for the images
         for k in tqdm(list(range(test_data.num_batches)), desc='path'):
             batch = test_data.next_batch()
+
             caption_data = self.beam_search(sess, batch, vocabulary)
 
             fake_cnt = 0 if k < test_data.num_batches-1 else test_data.fake_count
@@ -206,19 +207,20 @@ class BaseModel(object):
                 image_name = image_file.split(os.sep)[-1]
                 image_name = os.path.splitext(image_name)[0]
                 img = plt.imread(image_file)
+
                 plt.imshow(img)
                 plt.axis('off')
                 plt.title(caption)
-                plt.savefig(os.path.join(config.test_result_dir, image_name+'_result.jpg'))
+                plt.savefig(os.path.join(config.test_result_dir, image_name + '_result.jpg'))
 
 
-        # Save the captions to a file
-        results = pd.DataFrame({'image_files':test_data.image_files, 'caption':captions, 'prob':scores})
+        # Save the generated captions to a CSV file in test folder
+        results = pd.DataFrame({'image_files': test_data.image_links, 'caption': captions, 'prob': scores})
                                 
         results.to_csv(config.test_result_file)
 
 
-        print("Testing complete.")
+        print("Testing complete. Results are in {}".format(config.test_result_dir))
 
 
 

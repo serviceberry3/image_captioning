@@ -64,7 +64,7 @@ class PTBTokenizer:
 
 
         token_lines = p_tokenizer.communicate(input=sentences.rstrip())[0].decode("utf-8")
-        print("token_lines is", token_lines)
+        #print("token_lines is", token_lines)
 
         lines = token_lines.split('\n')
 
