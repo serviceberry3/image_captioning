@@ -1,5 +1,6 @@
 ### Noah Weiner, Kaleb Gezahegn, Evan Strittmatter ###  
 
+
 ## Changelog - Noah Weiner ##  
 * 12/11/22  
     1. Change some import statements (i.e. in eval.py, cider.py, bleu.py) and print statements to match Python 3.10 syntax  
@@ -27,12 +28,13 @@
     3. Use range() instead of deprecated xrange() for bleu_scorer.py.
 * 12/20/22
     1. Get BLEU scorer working. I see how meteor scorer is supposed to work (it works if I run it using java and the meteor-1.5.jar file in the meteor/ directory), but for some reason the piping into stdin and then reading from stdout is not working for the meteor subprocess.
+    2. Add script sbu_download.py, which downloads images (num of desired imgs can be specified) from SBU dataset using wget.
+    3. Add support for using SBU captions dataset instead of COCO (can be specified in config.py). This involved changing all of the dataset preparation code, since the SBU JSON annotations file is a lot different in structure from the COCO one (SBU JSON only has image_urls and captions lists).
 
 
-  
   
 ### Introduction
-This neural system for image captioning is roughly based on the paper "Show, Attend and Tell: Neural Image Caption Generation with Visual Attention" by Xu et al. (ICML2015). The input is an image, and the output is a sentence describing the content of the image. It uses a convolutional neural network to extract visual features from the image, and uses a LSTM recurrent neural network to decode these features into a sentence. A soft attention mechanism is incorporated to improve the quality of the caption. This project is implemented using the Tensorflow library, and allows end-to-end training of both CNN and RNN parts.
+This neural system for image captioning is roughly based on the paper "Show, Attend and Tell: Neural Image Caption Generation with Visual Attention" by Xu et al. (ICML2015). The input is an image, and the output is a sentence describing the content of the image. It uses a convolutional neural network to extract visual features from the image, and uses a LSTM recurrent neural network to decode these features into a sentence. A soft attention mechanism is incorporated to improve the quality of the caption. This project is implemented using the Tensorflow library, and allows end-to-end training of both CNN and RNN parts. We used a pre-trained CNN, so only trained the RNN.
 
 ### Prerequisites
 * **Tensorflow** ([instructions](https://www.tensorflow.org/install/))
@@ -44,23 +46,22 @@ This neural system for image captioning is roughly based on the paper "Show, Att
 * **tqdm** ([instructions](https://pypi.python.org/pypi/tqdm))
 
 ### Usage
-* **Preparation:** Download the COCO train2014 and val2014 data [here](http://cocodataset.org/#download). Put the COCO train2014 images in the folder `train/images`, and put the file `captions_train2014.json` in the folder `train`. Similarly, put the COCO val2014 images in the folder `val/images`, and put the file `captions_val2014.json` in the folder `val`. Furthermore, download the pretrained VGG16 net [here](https://app.box.com/s/idt5khauxsamcg3y69jz13w6sc6122ph) or ResNet50 net [here](https://app.box.com/s/17vthb1zl0zeh340m4gaw0luuf2vscne) if you want to use it to initialize the CNN part.
+* **Preparation:** Download the COCO train2014 and val2014 data [here](http://cocodataset.org/#download) (you might need to use curl -O <images.cocodataset.org/zips/train2014.zip>, etc.). Put the COCO train2014 images in the folder `train/images/coco`, and put the file `captions_train2014.json` in the folder `train`. Similarly, put the COCO val2014 images in the folder `val/images/coco`, and put the file `captions_val2014.json` in the folder `val`. Furthermore, download the pretrained VGG16 net [here](https://app.box.com/s/idt5khauxsamcg3y69jz13w6sc6122ph) to initialize the CNN part.
 
 * **Training:**
-To train a model using the COCO train2014 data, first setup various parameters in the file `config.py` and then run a command like this:
+To train a model using the COCO train2014 data, first setup various parameters in the file `config.py`. The parameters you should pay attention to are:
+* num_train_data, num_val_data
+* dataset - whether to use 'coco' or 'sbu' data (more details to come on using sbu)
+* max_caption_length - set this so that it roughly matches caption length for your dataset, but shouldn't be too large for efficiency purposes. any captions greater than this length and their corresponding imgs will be pruned from data
+* local
+
+If local is True, the code will look in local folder for the images, and will select num_train_data (or num_val_data for eval) of those images, extract their image IDs from the filenames, and go to the JSON annotations file to find captions for the corresponding images. If local is False (only use for COCO), the code will go the COCO JSON annotations and find image links and image captions from the first num_train_data annotations. It will then load the images via URL with the COCO API during training.
+
+To train run:
 ```shell
-python main.py --phase=train \
-    --load_cnn \
-    --cnn_model_file='./vgg16_no_fc.npy'\
-    [--train_cnn]    
+python3 main.py
 ```
-Turn on `--train_cnn` if you want to jointly train the CNN and RNN parts. Otherwise, only the RNN part is trained. The checkpoints will be saved in the folder `models`. If you want to resume the training from a checkpoint, run a command like this:
-```shell
-python main.py --phase=train \
-    --load \
-    --model_file='./models/xxxxxx.npy'\
-    [--train_cnn]
-```
+The checkpoints will be saved in the folder `models`. 
 To monitor the progress of training, run the following command:
 ```shell
 tensorboard --logdir='./summary/'
@@ -69,30 +70,17 @@ tensorboard --logdir='./summary/'
 * **Evaluation:**
 To evaluate a trained model using the COCO val2014 data, run a command like this:
 ```shell
-python main.py --phase=eval \
-    --model_file='./models/xxxxxx.npy' \
-    --beam_size=3
+python3 main.py --phase=eval
 ```
 The result will be shown in stdout. Furthermore, the generated captions will be saved in the file `val/results.json`.
 
 * **Inference:**
 You can use the trained model to generate captions for any JPEG images! Put such images in the folder `test/images`, and run a command like this:
 ```shell
-python main.py --phase=test \
-    --model_file='./models/xxxxxx.npy' \
-    --beam_size=3
+python main.py --phase=test
 ```
 The generated captions will be saved in the folder `test/results`.
 
-### Results
-A pretrained model with default configuration can be downloaded [here](https://app.box.com/s/xuigzzaqfbpnf76t295h109ey9po5t8p). This model was trained solely on the COCO train2014 data. It achieves the following BLEU scores on the COCO val2014 data (with `beam size=3`):
-* **BLEU-1 = 70.3%**
-* **BLEU-2 = 53.6%**
-* **BLEU-3 = 39.8%**
-* **BLEU-4 = 29.5%**
-
-Here are some captions generated by this model:
-![examples](examples/examples.jpg)
 
 ### References
 * [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention](https://arxiv.org/abs/1502.03044). Kelvin Xu, Jimmy Ba, Ryan Kiros, Kyunghyun Cho, Aaron Courville, Ruslan Salakhutdinov, Richard Zemel, Yoshua Bengio. ICML 2015.

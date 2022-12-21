@@ -44,6 +44,7 @@ class BaseModel(object):
     def build(self):
         raise NotImplementedError()
 
+
     def train(self, sess, train_data):
         """ Train the model using the COCO train2014 data. """
         print("Training the model via train() in base_model.py...")
@@ -92,6 +93,7 @@ class BaseModel(object):
         train_writer.close()
 
         print("Training complete.")
+
 
 
     #a portion of the COCO data is used as evaluation data after the network is trained (it's taken from COCO "val" dataset)
@@ -171,6 +173,7 @@ class BaseModel(object):
         scorer.evaluate()
 
         print("Evaluation complete.")
+
 
 
     #network can be tested on our own JPG images in the test/ folder

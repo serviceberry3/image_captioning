@@ -161,6 +161,7 @@ class CaptionGenerator(BaseModel):
         outputs = tf.nn.relu(outputs)
         return outputs
 
+
     def resnet_block2(self, inputs, name1, name2, c):
         """ Another basic block of ResNet. """
         branch2a_feats = self.nn.conv2d(inputs,
