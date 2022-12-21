@@ -46,7 +46,7 @@ This neural system for image captioning is roughly based on the paper "Show, Att
 * **tqdm** ([instructions](https://pypi.python.org/pypi/tqdm))
 
 ### Usage
-* **Preparation:** Download the COCO train2014 and val2014 data [here](http://cocodataset.org/#download) (you might need to use curl -O <images.cocodataset.org/zips/train2014.zip>, etc.). Put the COCO train2014 images in the folder `train/images/coco`, and put the file `captions_train2014.json` in the folder `train`. Similarly, put the COCO val2014 images in the folder `val/images/coco`, and put the file `captions_val2014.json` in the folder `val`. Furthermore, download the pretrained VGG16 net [here](https://app.box.com/s/idt5khauxsamcg3y69jz13w6sc6122ph) to initialize the CNN part.
+* **Preparation:** Download the COCO train2014 and val2014 data [here](http://cocodataset.org/#download) (you might need to use curl -O <images.cocodataset.org/zips/train2014.zip>, etc.). Put the COCO train2014 images in the folder `train/images/coco`, and put the file `captions_train2014.json` in the folder `train`. Similarly, put the COCO val2014 images in the folder `val/images`, and put the file `captions_val2014.json` in the folder `val`. Furthermore, download the pretrained VGG16 net [here](https://app.box.com/s/idt5khauxsamcg3y69jz13w6sc6122ph) to initialize the CNN part.
 
 * **Training:**
 To train a model using the COCO train2014 data, first setup various parameters in the file `config.py`. The parameters you should pay attention to are:
