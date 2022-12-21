@@ -36,12 +36,18 @@ class COCOEvalCap:
         res = {}
 
         for imgId in imgIds:
-            #CHANGED BY NWEINER 12/19 -- use new coco dict names
-            #gts[imgId] = self.coco.imgToAnns[imgId]
-            gts[imgId] = self.coco.imgId_to_ann[imgId]
+            if self.coco.config.dataset == 'coco':
+                #CHANGED BY NWEINER 12/19 -- use new coco dict names
+                #gts[imgId] = self.coco.imgToAnns[imgId]
+                gts[imgId] = self.coco.imgId_to_ann[imgId]
 
-            #res[imgId] = self.cocoRes.imgToAnns[imgId]
-            res[imgId] = self.cocoRes.imgId_to_ann[imgId]
+                #res[imgId] = self.cocoRes.imgToAnns[imgId]
+                res[imgId] = self.cocoRes.imgId_to_ann[imgId]
+            elif self.coco.config.dataset == 'sbu':
+                gts[imgId] = self.coco.imgId_to_cap[imgId]
+
+                #res[imgId] = self.cocoRes.imgToAnns[imgId]
+                res[imgId] = self.cocoRes.imgId_to_ann[imgId]
 
 
         #print("gts is", gts)
@@ -53,10 +59,17 @@ class COCOEvalCap:
         print('Tokenization of the ground truth and network-run dicts...')
         tokenizer = PTBTokenizer()
 
-        #tokenize the two dicts
-        gts = tokenizer.tokenize(gts)
 
-        res = tokenizer.tokenize(res)
+        if self.coco.config.dataset == 'coco':
+            #tokenize the two dicts
+            gts = tokenizer.tokenize(gts)
+
+            res = tokenizer.tokenize(res)
+        elif self.coco.config.dataset == 'sbu':
+            #tokenize the two dicts
+            gts = tokenizer.tokenize_sbu(gts, imgIds)
+
+            res = tokenizer.tokenize_sbu(res, imgIds)
 
         # =================================================
         # Set up scorers

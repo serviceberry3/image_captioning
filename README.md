@@ -32,6 +32,9 @@
     3. Add support for using SBU captions dataset instead of COCO (can be specified in config.py). This involved changing all of the dataset preparation code, since the SBU JSON annotations file is a lot different in structure from the COCO one (SBU JSON only has image_urls and captions lists).
 
 
+## NOTES - Noah Weiner ##
+* build_vocabulary() function in dataset.py is down.
+
   
 ### Introduction
 This neural system for image captioning is roughly based on the paper "Show, Attend and Tell: Neural Image Caption Generation with Visual Attention" by Xu et al. (ICML2015). The input is an image, and the output is a sentence describing the content of the image. It uses a convolutional neural network to extract visual features from the image, and uses a LSTM recurrent neural network to decode these features into a sentence. A soft attention mechanism is incorporated to improve the quality of the caption. This project is implemented using the Tensorflow library, and allows end-to-end training of both CNN and RNN parts. We used a pre-trained CNN, so only trained the RNN.

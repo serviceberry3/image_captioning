@@ -131,7 +131,7 @@ class BaseModel(object):
                 caption = vocabulary.get_sentence(word_idxs)
 
                 #append to results: results will be a list of dicts
-                results.append({'image_id': int(eval_data.image_ids[idx]), 'caption': caption})
+                results.append({'image_id': eval_data.image_ids[idx], 'caption': caption})
 
                 #print("appending img id {} and caption {} to results".format(eval_data.image_ids[idx], caption))
 

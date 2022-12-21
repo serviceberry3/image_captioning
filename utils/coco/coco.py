@@ -133,17 +133,17 @@ class COCO:
             #this function changes captions to all lowercase
             self.process_dataset()
 
-            self.createIndex()
+            self.createIndex(False)
 
 
     #using the JSON object extracted from the COCO annotations file, create some dicts to organize the data into an "index"
     #NOTE: each unique-id-image can have multiple annotations, each annotation having its own unique annotation ID and its own unique caption
-    def createIndex(self):
+    def createIndex(self, force_coco):
         print('Loading JSON data into convenient dicts via createIndex()...')
 
         ctr = 0
 
-        if (self.config.dataset == 'coco'):
+        if (self.config.dataset == 'coco' or force_coco):
 
             #COCO json has various sections. images section contains image IDs, license info, file name info, URL for img, etc.
             #annotations section contains image id and metadata about the image, including its caption, area, etc.
@@ -257,8 +257,6 @@ class COCO:
             for url in self.dataset['image_urls']:
                 #extract the 10-digit img ID from end of url
                 id_from_url = url[-14:-4]
-                if (id_from_url == '240d5ff280'):
-                    print("FOUND")
                 #print("createIndex(): adding sbu img id {} with its respective caption to imgId_to_cap".format(id_from_url))
 
                 imgId_to_cap[id_from_url] = self.dataset['captions'][ctr]
@@ -416,16 +414,18 @@ class COCO:
 
         resFile = config.eval_result_file
 
-        res.dataset['images'] = [img for img in self.dataset['images']]
-        # res.dataset['info'] = copy.deepcopy(self.dataset['info'])
-        # res.dataset['licenses'] = copy.deepcopy(self.dataset['licenses'])
+        if config.dataset == 'coco':
+            res.dataset['images'] = [img for img in self.dataset['images']]
+            # res.dataset['info'] = copy.deepcopy(self.dataset['info'])
+            # res.dataset['licenses'] = copy.deepcopy(self.dataset['licenses'])
 
-        print('Loading and preparing results...     ')
+        print('Loading and preparing results... ')
         tic = time.time()
 
         #resfile by default is ie val/results.json for evaluation
         #load in the json data that was saved during eval() 
         anns = json.load(open(resFile))
+        #print("anns is", anns)
 
         assert type(anns) == list, 'results in not an array of objects'
 
@@ -438,8 +438,16 @@ class COCO:
 
         assert 'caption' in anns[0]
 
-        imgIds = set([img['id'] for img in res.dataset['images']]) & set([ann['image_id'] for ann in anns])
-        res.dataset['images'] = [img for img in res.dataset['images'] if img['id'] in imgIds]
+        if config.dataset == 'coco':
+            imgIds = set([img['id'] for img in res.dataset['images']]) & set([ann['image_id'] for ann in anns])
+
+            res.dataset['images'] = [img for img in res.dataset['images'] if img['id'] in imgIds]
+        elif config.dataset == 'sbu':
+            pass
+            #imgIds = set(res.imgIds) & set([ann['image_id'] for ann in anns])
+            #res.dataset['images'] = [img for img in res.dataset['images'] if img['id'] in imgIds]
+
+            #res.imgId
 
         for id, ann in enumerate(anns):
             ann['id'] = id + 1
@@ -447,7 +455,8 @@ class COCO:
         print('DONE (t=%0.2fs)'%(time.time()- tic))
 
         res.dataset['annotations'] = anns
-        res.createIndex()
+
+        res.createIndex(True)
 
         return res
 
@@ -571,7 +580,7 @@ class COCO:
 
 
         #remake the index after modifying the data
-        self.createIndex()
+        self.createIndex(False)
 
 
 
@@ -661,7 +670,7 @@ class COCO:
 
 
         #remake the index
-        self.createIndex()
+        self.createIndex(False)
 
 
 

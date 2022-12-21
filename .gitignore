@@ -9,3 +9,4 @@ utils/ilsvrc_2012_mean.npy
 test2
 train2
 val2
+SBU_captioned_photo_dataset_urls.txt

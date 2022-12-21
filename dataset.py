@@ -101,10 +101,10 @@ def prepare_train_data(config):
     """ Prepare the data for training the model. """
     print("Running prepare_train_data()...")
 
-    if (config.dataset == 'sbu'):
+    if config.dataset == 'sbu':
         #instantiate a COCO Python object, passing the JSON annotation file containing all the captions for all training images
         coco = myCOCO(config, config.num_train_data, config.sbu_train_caption_file)
-    else:
+    elif config.dataset == 'coco':
         coco = myCOCO(config, config.num_train_data, config.coco_train_caption_file)
 
     #pull caption for each image into a list
@@ -185,7 +185,7 @@ def prepare_train_data(config):
         #extract captions for the images that are stored locally
         if config.dataset == 'coco':
             captions = [coco.imgId_to_ann[image_id][0]['caption'] for image_id in image_ids]
-        else:
+        elif config.dataset == 'sbu':
             captions = [coco.imgId_to_cap[image_id] for image_id in image_ids]
 
         #CHANGED BY NWEINER 12/14/22: 
@@ -278,7 +278,7 @@ def prepare_train_data(config):
 
 
     print("Image captions have been processed.")
-    print("Number of captions = %d" %(len(captions)))
+    print("Number of captions (and num of imgs that will actually be used in training) = %d" %(len(captions)))
 
     print("Building the DataSet object using the images and digit-ified captions...")
 
@@ -297,7 +297,10 @@ def prepare_train_data(config):
 #prepare evaluation data
 def prepare_eval_data(config):
     """ Prepare the data for evaluating the model. """
-    coco = myCOCO(config, config.num_val_data, config.eval_caption_file)
+    if config.dataset == 'coco':
+        coco = myCOCO(config, config.num_val_data, config.coco_eval_caption_file)
+    elif config.dataset == 'sbu':
+        coco = myCOCO(config, config.num_val_data, config.sbu_train_caption_file)
 
     #get list of image IDs
     #image_ids = list(coco.imgs.keys())
@@ -307,8 +310,13 @@ def prepare_eval_data(config):
     ctr = 0
 
     if (config.local):
-        #get the list of all files and directories
-        path = "../image_captioning/val/images"
+        if config.dataset == 'coco':
+            #get the list of all files and directories
+            path = config.coco_eval_image_dir
+        elif config.dataset == 'sbu':
+            path = config.sbu_eval_image_dir
+
+
         files_list = os.listdir(path)
 
 
@@ -316,11 +324,12 @@ def prepare_eval_data(config):
         for file in files_list:
             #make sure this is not a JSON file
             if (file[-3:] != 'son' and ctr < config.num_val_data):
-                #extract the annotation ID corresponding to the jpg file, and append it to the running list of found IDs
-                ids.append(int(file[-10:-4]))
+                if config.dataset == 'coco':
+                    #extract the annotation ID corresponding to the jpg file, and append it to the running list of found IDs
+                    ids.append(int(file[-10:-4]))
+                elif config.dataset == 'sbu':
+                    ids.append(file[0:10])
 
-                if ctr == 0:
-                    print("id is", int(file[-10:-5]))
 
                 ctr += 1
 
@@ -337,7 +346,11 @@ def prepare_eval_data(config):
     if config.local:
         print("{} val images were found locally, in {}".format(len(image_ids), path))
 
-        image_files = [os.path.join(config.eval_image_dir, coco.imgId_to_img[image_id]['file_name']) for image_id in image_ids]
+        if config.dataset == 'coco':
+            image_files = [os.path.join(config.coco_eval_image_dir, coco.imgId_to_img[image_id]['file_name']) for image_id in image_ids]
+        elif config.dataset == 'sbu':
+            #image_files = [os.path.join(config.sbu_eval_image_dir, coco.imgIds[image_id]['file_name']) for image_id in image_ids]
+            image_files = [os.path.join(config.sbu_eval_image_dir, str(image_id)+'.jpg') for image_id in image_ids]
 
 
     #instead of using image filenames, use the COCO link for the image (to avoid storing tons of images locally)
@@ -353,7 +366,7 @@ def prepare_eval_data(config):
     if os.path.exists(config.vocabulary_file):
         vocabulary = Vocabulary(config.vocabulary_size, config.vocabulary_file)
     else:
-        vocabulary = build_vocabulary(config)
+        vocabulary = build_vocabulary(config, config.num_val_data)
 
     print("Vocabulary built.")
     print("Number of words = %d" %(vocabulary.size))
@@ -394,7 +407,7 @@ def prepare_test_data(config):
     if os.path.exists(config.vocabulary_file):
         vocabulary = Vocabulary(config.vocabulary_size, config.vocabulary_file)
     else:
-        vocabulary = build_vocabulary(config)
+        vocabulary = build_vocabulary(config, config.num_test_data)
 
 
     print("Vocabulary built.")
@@ -412,12 +425,21 @@ def prepare_test_data(config):
 
 
 
-def build_vocabulary(config):
+def build_vocabulary(config, num_data):
     """ Build the vocabulary from the training data and save it to a file. """
-    coco = myCOCO(config.train_caption_file)
+
+    if config.dataset == 'coco':
+        coco = myCOCO(config, num_data, config.coco_train_caption_file)
+    elif config.dataset == 'sbu':
+        coco = myCOCO(config, num_data, config.sbu_train_caption_file)
+
+
     coco.filter_by_cap_len(config.max_caption_length)
 
     vocabulary = Vocabulary(config.vocabulary_size)
+
     vocabulary.build(coco.all_captions())
     vocabulary.save(config.vocabulary_file)
+
+
     return vocabulary

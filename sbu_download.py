@@ -1,58 +1,42 @@
-## Importing Necessary Modules
-import requests # to get image from the web
-import shutil # to save it locally
+import requests #lets us get img from web
+import shutil #lets us easily save imgs locally
 
 
-output_dir = "sbu_images"
+#specify dir in which we want to save imgs, and the txt file containing all of the img urls
+output_dir = "./val/images/sbu/"
 urls_file = 'SBU_captioned_photo_dataset_urls.txt'
 
+
+#open the txt file and read all the url strings into a list
 with open(urls_file) as file:
     lines = [line.rstrip() for line in file]
 
-print(lines[1])
 
+#print(lines[1][-14:-4])
 
-## Set up the image URL and filename
-image_url = "https://cdn.pixabay.com/photo/2020/02/06/09/39/summer-4823612_960_720.jpg"
-filename = image_url.split("/")[-1]
+num_downloaded = 0
 
-# Open the url image, set stream to True, this will return the stream content.
-r = requests.get(image_url, stream = True)
+for url in lines[10000:]:
+    # Open the url image, set stream to True, this will return the stream content.
+    r = requests.get(url, stream = True)
 
-# Check if the image was retrieved successfully
-if r.status_code == 200:
-    # Set decode_content value to True, otherwise the downloaded image file's size will be zero.
-    r.raw.decode_content = True
-    
-    # Open a local file with wb ( write binary ) permission.
-    with open(filename,'wb') as f:
-        shutil.copyfileobj(r.raw, f)
+    # Check if the image was retrieved successfully
+    if r.status_code == 200:
+        #set local filename to be <10-digit img id>.jpg
+        filename = url[-14:]
+
+        # Set decode_content value to True, otherwise the downloaded image file's size will be zero.
+        r.raw.decode_content = True
         
-    print('Image sucessfully Downloaded: ',filename)
-else:
-    print('Image Couldn\'t be retreived')
+        # Open a local file with wb ( write binary ) permission.
+        with open(output_dir + filename, 'wb') as f:
+            shutil.copyfileobj(r.raw, f)
+            
+        print('Image sucessfully downloaded and saved as {}'.format(output_dir + filename))
+
+        num_downloaded += 1
+    else:
+        print('Image could not be retrieved')
 
 
-
-output_directory = 'sbu_images';
-urls = textread('SBU_captioned_photo_dataset_urls.txt', '%s', -1);
-
-
-if ~exist(output_directory, 'dir')
-	mkdir(output_directory);
-end
-
-rand('twister', 123);
-urls = urls(randperm(length(urls)));
-
-%iterate for 30000
-for i = 1 : 30000
-	if ~exist(fullfile(output_directory, [regexprep(urls{i}(24, end), '/', '_')]))
-		cmd = ['wget -t 3 -T 5 --quiet ' urls{i} ...
-			   ' -O ' output_directory '/' regexprep(urls{i}(24, end), '/', '_')];
-		unix(cmd);
-        
-		fprintf('%d. %s\n', i, urls{i});
-	end	
-end
-'''
+print("successfully downloaded {} total imgs".format(num_downloaded))

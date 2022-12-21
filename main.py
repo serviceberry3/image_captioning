@@ -98,6 +98,8 @@ def main(argv):
             model.load(sess, FLAGS.model_file)
 
             tf.get_default_graph().finalize()
+
+            #call eval on base_model
             model.eval(sess, coco, data, vocabulary)
 
 
@@ -110,6 +112,7 @@ def main(argv):
             model = CaptionGenerator(config, None)
 
             model.load(sess, FLAGS.model_file)
+
             tf.get_default_graph().finalize()
 
             model.test(sess, data, vocabulary)

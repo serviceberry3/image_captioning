@@ -71,9 +71,11 @@ class Config(object):
         self.temp_data_file = './train/data.npy' #temporary data file
 
         # about the evaluation
-        self.eval_image_dir = './val/images/'
-        self.eval_caption_file = './val/captions_val2014.json'
-        self.eval_result_dir = './val/results/'
+        self.coco_eval_image_dir = './val/images/coco'
+        self.sbu_eval_image_dir = './val/images/sbu'
+        self.coco_eval_caption_file = './val/captions_val2014.json'
+        self.eval_result_dir = './val/results'
+
         self.eval_result_file = './val/results.json'
         self.save_eval_result_as_image = False
 
