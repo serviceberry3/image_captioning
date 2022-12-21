@@ -209,6 +209,8 @@ class CaptionGenerator(BaseModel):
             sentences = tf.placeholder(
                 dtype = tf.int32,
                 shape = [config.batch_size, config.max_caption_length])
+
+            #masks is a float32 tensor
             masks = tf.placeholder(
                 dtype = tf.float32,
                 shape = [config.batch_size, config.max_caption_length])
@@ -272,11 +274,9 @@ class CaptionGenerator(BaseModel):
             # Attention mechanism
             with tf.variable_scope("attend"):
                 alpha = self.attend(contexts, last_output)
-                context = tf.reduce_sum(contexts*tf.expand_dims(alpha, 2),
-                                        axis = 1)
+                context = tf.reduce_sum(contexts * tf.expand_dims(alpha, 2), axis = 1)
                 if self.is_train:
-                    tiled_masks = tf.tile(tf.expand_dims(masks[:, idx], 1),
-                                         [1, self.num_ctx])
+                    tiled_masks = tf.tile(tf.expand_dims(masks[:, idx], 1), [1, self.num_ctx])
                     masked_alpha = alpha * tiled_masks
                     alphas.append(tf.reshape(masked_alpha, [-1]))
 
@@ -292,28 +292,34 @@ class CaptionGenerator(BaseModel):
 
             # Decode the expanded output of LSTM into a word
             with tf.variable_scope("decode"):
-                expanded_output = tf.concat([output,
-                                             context,
-                                             word_embed],
-                                             axis = 1)
+                expanded_output = tf.concat([output, context, word_embed], axis = 1)
                 logits = self.decode(expanded_output)
+
                 probs = tf.nn.softmax(logits)
+
+                #based on the probability distribution, extract the most probable next word
                 prediction = tf.argmax(logits, 1)
                 predictions.append(prediction)
+
 
             # Compute the loss for this step, if necessary
             if self.is_train:
                 cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
                     labels = sentences[:, idx],
                     logits = logits)
+
                 masked_cross_entropy = cross_entropy * masks[:, idx]
                 cross_entropies.append(masked_cross_entropy)
 
                 ground_truth = tf.cast(sentences[:, idx], tf.int64)
+
+                #compare predictions against ground truth
                 prediction_correct = tf.where(
                     tf.equal(prediction, ground_truth),
                     tf.cast(masks[:, idx], tf.float32),
                     tf.cast(tf.zeros_like(prediction), tf.float32))
+
+
                 predictions_correct.append(prediction_correct)
 
                 last_output = output
@@ -342,8 +348,8 @@ class CaptionGenerator(BaseModel):
             total_loss = cross_entropy_loss + attention_loss + reg_loss
 
             predictions_correct = tf.stack(predictions_correct, axis = 1)
-            accuracy = tf.reduce_sum(predictions_correct) \
-                       / tf.reduce_sum(masks)
+
+            accuracy = tf.reduce_sum(predictions_correct)  / tf.reduce_sum(masks)
 
         self.contexts = contexts
 
@@ -546,6 +552,7 @@ class CaptionGenerator(BaseModel):
             tf.summary.scalar("attention_loss", self.attention_loss)
             tf.summary.scalar("reg_loss", self.reg_loss)
             tf.summary.scalar("total_loss", self.total_loss)
+            
             tf.summary.scalar("accuracy", self.accuracy)
 
         with tf.name_scope("attentions"):

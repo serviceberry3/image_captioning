@@ -11,20 +11,22 @@
     7. Follow instructions here, in general: https://www.tensorflow.org/guide/migrate  
     8. Some other quirks of Python3 vs. older versions of python, like using items() instead of iteritems() on a dict  
 * 12/14/22  
-    9. Change the all_captions(), createIndex(), and init() functions in coco.py to optionally pull the COCO image url instead of creating the local filename for each image.  
-    10. Add comments (walk through/understand code), improve variable names, and reduce lines of code in coco.py, dataset.py, main.py, and vocabulary.py.  
-    11. Change prepare_train_data() in dataset.py to look at images in train/images local folder, extract the image IDs for the images from their filenames, and create the pandas dataframe by pulling only those images and
+    1. Change the all_captions(), createIndex(), and init() functions in coco.py to optionally pull the COCO image url instead of creating the local filename for each image.  
+    2. Add comments (walk through/understand code), improve variable names, and reduce lines of code in coco.py, dataset.py, main.py, and vocabulary.py.  
+    3. Change prepare_train_data() in dataset.py to look at images in train/images local folder, extract the image IDs for the images from their filenames, and create the pandas dataframe by pulling only those images and
     their captions from the annotations section of the COCO JSON annotations file.  
-    12. Add a clean.sh script to remove large temporary files that are created at runtime (i.e. vocabulary csv file, model checkpoints, the csv file containing the dataframe of all img IDs and their captions).  
-    13. Change image loading code in misc.py to load images using skimage io function if imgs are URLs, otherwise to use cv2 imread() with local filename.
-    14. Add a variable called "local" to config to specify to many files/functions whether images are being loaded from local folder or from URL.
-    15. Change BaseModel constructor to take annotations JSON filename as an arg.
+    4. Add a clean.sh script to remove large temporary files that are created at runtime (i.e. vocabulary csv file, model checkpoints, the csv file containing the dataframe of all img IDs and their captions).  
+    5. Change image loading code in misc.py to load images using skimage io function if imgs are URLs, otherwise to use cv2 imread() with local filename.
+    6. Add a variable called "local" to config to specify to many files/functions whether images are being loaded from local folder or from URL.
+    7. Change BaseModel constructor to take annotations JSON filename as an arg.
 * 12/18/22  
-    16. Finish implementing the local and num_train_data options in config. If you set local True, Tf will read images from local folder, extract the img IDs from the filenames, and pull the appropriate captions from the annotations JSON. If set local False, you can specify the number of training images you want to use, and then Tf will pull that number of images from the COCO API during training.  
+    1. Finish implementing the local and num_train_data options in config. If you set local True, Tf will read images from local folder, extract the img IDs from the filenames, and pull the appropriate captions from the annotations JSON. If set local False, you can specify the number of training images you want to use, and then Tf will pull that number of images from the COCO API during training.  
 * 12/19/22
-    17. During eval() in base_model.py, the val set from COCO is run through the network, and captions are generated. The function stores a list of dicts containing image id and the generated caption. Needed to cast these int64 image ids to regular Python int() in order to then be able to save the list of dicts into JSON file val/results.json.
-    18. Resolve byte->string conversion errors using the tokenizer in ptbtokenizer.py, for evaluate() in eval.py.
-    19. Use range() instead of deprecated xrange() for bleu_scorer.py.
+    1. During eval() in base_model.py, the val set from COCO is run through the network, and captions are generated. The function stores a list of dicts containing image id and the generated caption. Needed to cast these int64 image ids to regular Python int() in order to then be able to save the list of dicts into JSON file val/results.json.
+    2. Resolve byte->string conversion errors using the tokenizer in ptbtokenizer.py, for evaluate() in eval.py.
+    3. Use range() instead of deprecated xrange() for bleu_scorer.py.
+* 12/20/22
+    1. Get BLEU scorer working. I see how meteor scorer is supposed to work (it works if I run it using java and the meteor-1.5.jar file in the meteor/ directory), but for some reason the piping into stdin and then reading from stdout is not working for the meteor subprocess.
 
 
   
